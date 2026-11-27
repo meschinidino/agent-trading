@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-27
+
 ### Changed
 - Paleta de acento V1 Lima domado en landing + app (refs DIN-21).
 
