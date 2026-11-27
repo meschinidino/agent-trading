@@ -4,7 +4,7 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Version 0.2.0** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Version 0.2.1** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
@@ -14,7 +14,7 @@ What works there today: register and sign in, create a paper wallet and fund it,
 
 A static design mockup is also live at https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — that is a **design mockup only**, not the app.
 
-What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through Phantom MCP on Dino's Mac, the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`), and SSE live updates are decided but not yet implemented.
+What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through the Phantom MCP signing service (operator-hosted), the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`), and SSE live updates are decided but not yet implemented.
 
 ## The idea
 
@@ -24,7 +24,7 @@ The thesis is narrow on purpose: an LLM can operate a real wallet usefully if th
 
 ## Status
 
-Onda 0.2.0 is a live internal demo on real infrastructure, running paper execution:
+Onda 0.2.1 is a live internal demo on real infrastructure, running paper execution:
 
 - **Terminal amable UI** (the approved design direction): a cold dark terminal, Jupiter swap-object confirmation with slide-to-sign, a thread-centered layout, a portfolio rail and a live prices strip. This replaced the earlier “editorial C” direction after a teardown of comparable products; C is historical, not current.
 - **Real market data, simulated fills.** Quotes, prices, `simulateTransaction` checks and the agent wallet's on-chain balances are real and live. Paper USDC and paper xStocks are local ledger rows, labeled `mode: "paper"` end-to-end and never presented as on-chain balances.
@@ -68,7 +68,7 @@ flowchart TD
     GATE -->|"pending_confirmation"| UI
     UI -->|"slide-to-sign / reject"| BE
     BE -->|"only if confirmed"| EXEC["Paper fill after real simulation"]
-    EXEC -.->|"execution flag on (future)"| MCP["Phantom MCP (Dino's Mac)"]
+    EXEC -.->|"execution flag on (future)"| MCP["Phantom MCP — signing service (operator-hosted)"]
     MCP -.-> JUP["Jupiter Swap API v2 — /order · /build"]
     JUP -.-> SOL["Solana — USDC → SPYx / AAPLx / NVDAx"]
 ```
@@ -94,7 +94,8 @@ The full runbook — resources, build, and teardown commands, including the vari
 ## Roadmap
 
 - **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
-- **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending Dino's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
+- **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
+- **Phase 1.2 — Onda MCP (specified, not built):** remote MCP server so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; see [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
 - **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.
 
@@ -105,11 +106,11 @@ Delivery view: [`docs/roadmap.md`](docs/roadmap.md). Risks and the decision log 
 Recorded 2026-11-27 (detail in spec 06):
 
 - **Q1 — Demo audience: internal.** The demo is internal-only; no external showing yet.
-- **Q3 — Live updates: SSE.** Dino picked SSE over polling; not yet implemented (phase 1.1).
-- **Q4 — MCP host: Dino's Mac.** A dedicated host only if the demo needs it.
+- **Q3 — Live updates: SSE.** SSE was picked over polling; not yet implemented (phase 1.1).
+- **Q4 — MCP host: operator host (single-tenant dev host today).** A dedicated host only if the demo needs it.
 - **Q6 — Voice input: no.** Out of scope for now.
-- **Execution stays off:** `EXECUTION_ENABLED=false` until Dino decides on funding.
-- **H11 — OPEN (owner: Dino):** xStocks eligibility for an operator in Argentina is still **unverified**. Until verified, the demo stays internal-only. This is the one open compliance item and it gates any third-party showing.
+- **Execution stays off:** `EXECUTION_ENABLED=false` until the operator decides on funding.
+- **H11 — OPEN (owner: project owner):** xStocks eligibility for an operator in Argentina is still **unverified**. Until verified, the demo stays internal-only. This is the one open compliance item and it gates any third-party showing.
 
 Honest limits: paper execution only, no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
 
@@ -125,7 +126,7 @@ Honest limits: paper execution only, no Phantom Connect, no ARS on-ramp, no SSE 
 
 ## Contributing
 
-Small, reviewable PRs against `main`; every PR needs `pnpm build` and `pnpm test` green, and no PR merges without Dino's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
+Small, reviewable PRs against `main`; every PR needs `pnpm build` and `pnpm test` green, and no PR merges without the project owner's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
 
 ## License
 

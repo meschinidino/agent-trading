@@ -28,7 +28,7 @@ Especificar la validación que separa una intención de un movimiento de fondos:
 | Entre el usuario y el backend (el frontend "frena" al agente) | El chat muestra la propuesta y solo reenvía si el usuario confirma | El backend confía en el cliente: un cliente modificado, un bug o el propio LLM vía otro canal ejecuta sin validar. La seguridad queda en la capa más débil. |
 | **Dentro del backend (recomendado)** | El backend crea la confirmation en estado `pending_confirmation` y **no existe endpoint de ejecución sin una confirmation `confirmed` vigente**. El frontend solo presenta y captura la decisión. | Ninguno estructural; exige modelar estados e idempotency (este documento). |
 
-**Decisión: gate dentro del backend.** El agente propone, el backend dispone, el frontend presenta. Esto sigue la línea que Dino ya inclinaba y es la única opción donde la garantía no depende de que el cliente se comporte.
+**Decisión: gate dentro del backend.** El agente propone, el backend dispone, el frontend presenta. Esto sigue la línea ya inclinada por el titular del proyecto y es la única opción donde la garantía no depende de que el cliente se comporte.
 
 ### Máquina de estados
 
