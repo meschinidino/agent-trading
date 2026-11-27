@@ -8,7 +8,7 @@
 <meta property="og:title" content="Onda — Your own personal broker">
 <meta property="og:description" content="Say what you want to buy. Review the swap. Slide to sign — or nothing moves. Live demo: paper trading, real prices.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="assets/confirm.png">
+<meta property="og:image" content="assets/en/confirm.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0b0d'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23a8c256'/%3E%3C/svg%3E">
 <style>
@@ -107,7 +107,8 @@ footer a{color:#cfd4da}
 <p class="fine" data-en="Internal demo · paper trades, real prices · not financial advice" data-es="Demo interna · trades paper, precios reales · no es asesoramiento financiero">Internal demo · paper trades, real prices · not financial advice</p>
 </div>
 <div>
-<div class="frame"><div class="chrome"><i></i><i></i><i></i><span>onda — live app</span></div><img src="assets/confirm.png" alt="Onda confirmation screen showing a swap proposal with slide-to-sign" width="1324" height="1278"></div>
+<div class="frame"><div class="chrome"><i></i><i></i><i></i><span>onda — live app</span></div><img id="heroShot" src="assets/en/confirm.png" data-en-src="assets/en/confirm.png" data-es-src="assets/es/confirm.png" alt="Onda confirmation screen showing a swap proposal with slide-to-sign" width="1280" height="1240"></div>
+<p class="cap" data-en="Real app, shown in English. Orders are phrased in Spanish (es-AR) today — the agent parser is Spanish-first." data-es="App real, mostrada en español. Las órdenes se escriben en español (es-AR) hoy.">Real app, shown in English. Orders are phrased in Spanish (es-AR) today — the agent parser is Spanish-first.</p>
 </div>
 </div>
 
@@ -118,9 +119,9 @@ footer a{color:#cfd4da}
 <section id="how"><div class="wrap">
 <h2 data-en="How it works" data-es="Cómo funciona">How it works</h2>
 <div class="steps">
-<article class="step"><img src="assets/start.png" alt="Onda start screen with paper wallet and live watchlist" loading="lazy"><div><p class="n">01</p><h3 data-en="Ask" data-es="Pedí">Ask</h3><p data-en="“Put $100 in the S&amp;P 500.” Onda quotes it live." data-es="«Invertí $100 en el S&amp;P 500». Onda cotiza en vivo.">“Put $100 in the S&amp;P 500.” Onda quotes it live.</p></div></article>
-<article class="step"><img src="assets/confirm.png" alt="Onda swap confirmation with slide-to-sign" loading="lazy"><div><p class="n">02</p><h3 data-en="Review" data-es="Revisá">Review</h3><p data-en="Slide to sign, reject, or let it expire." data-es="Deslizá para firmar, rechazá o dejá vencer.">Slide to sign, reject, or let it expire.</p></div></article>
-<article class="step"><img src="assets/receipt.png" alt="Onda receipt and portfolio after a paper buy" loading="lazy"><div><p class="n">03</p><h3 data-en="Receipt" data-es="Comprobante">Receipt</h3><p data-en="Every outcome lands in your history." data-es="Cada resultado queda en tu historial.">Every outcome lands in your history.</p></div></article>
+<article class="step"><img src="assets/en/start.png" data-en-src="assets/en/start.png" data-es-src="assets/es/start.png" alt="Onda start screen with paper wallet and live watchlist" loading="lazy"><div><p class="n">01</p><h3 data-en="Ask" data-es="Pedí">Ask</h3><p data-en="“Put $100 in the S&amp;P 500.” Onda quotes it live." data-es="«Invertí $100 en el S&amp;P 500». Onda cotiza en vivo.">“Put $100 in the S&amp;P 500.” Onda quotes it live.</p></div></article>
+<article class="step"><img src="assets/en/confirm.png" data-en-src="assets/en/confirm.png" data-es-src="assets/es/confirm.png" alt="Onda swap confirmation with slide-to-sign" loading="lazy"><div><p class="n">02</p><h3 data-en="Review" data-es="Revisá">Review</h3><p data-en="Slide to sign, reject, or let it expire." data-es="Deslizá para firmar, rechazá o dejá vencer.">Slide to sign, reject, or let it expire.</p></div></article>
+<article class="step"><img src="assets/en/receipt.png" data-en-src="assets/en/receipt.png" data-es-src="assets/es/receipt.png" alt="Onda receipt and portfolio after a paper buy" loading="lazy"><div><p class="n">03</p><h3 data-en="Receipt" data-es="Comprobante">Receipt</h3><p data-en="Every outcome lands in your history." data-es="Cada resultado queda en tu historial.">Every outcome lands in your history.</p></div></article>
 </div></div></section>
 
 <section id="gate" style="background:var(--bg2);border-block:1px solid var(--line)"><div class="wrap">
@@ -162,7 +163,7 @@ footer a{color:#cfd4da}
 
 <script>
 const $=s=>document.querySelector(s);
-function setLang(l){document.documentElement.lang=l;document.querySelectorAll('[data-en]').forEach(e=>{e.textContent=e.dataset[l]});$('#len').setAttribute('aria-pressed',l==='en');$('#les').setAttribute('aria-pressed',l==='es');try{localStorage.setItem('onda-lang',l)}catch(e){}}
+function setLang(l){document.documentElement.lang=l;document.querySelectorAll('[data-en]').forEach(e=>{e.textContent=e.dataset[l]});document.querySelectorAll('[data-en-src]').forEach(e=>{e.src=e.dataset[l+'Src']});$('#len').setAttribute('aria-pressed',l==='en');$('#les').setAttribute('aria-pressed',l==='es');try{localStorage.setItem('onda-lang',l)}catch(e){}}
 $('#len').onclick=()=>setLang('en');$('#les').onclick=()=>setLang('es');
 try{if(localStorage.getItem('onda-lang')==='es')setLang('es')}catch(e){}
 const sl=$('#slider'),th=$('#thumb'),fl=$('#fill'),lb=$('#slabel');let drag=false,x0=0;

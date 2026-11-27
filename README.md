@@ -4,7 +4,7 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Version 0.2.2** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Version 0.4.0** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
@@ -24,7 +24,7 @@ The thesis is narrow on purpose: an LLM can operate a real wallet usefully if th
 
 ## Status
 
-Onda 0.2.2 is a live internal demo on real infrastructure, running paper execution:
+Onda 0.4.0 is a live internal demo on real infrastructure, running paper execution:
 
 - **Terminal amable UI** (the approved design direction): a cold dark terminal, Jupiter swap-object confirmation with slide-to-sign, a thread-centered layout, a portfolio rail and a live prices strip. This replaced the earlier “editorial C” direction after a teardown of comparable products; C is historical, not current.
 - **Real market data, simulated fills.** Quotes, prices, `simulateTransaction` checks and the agent wallet's on-chain balances are real and live. Paper USDC and paper xStocks are local ledger rows, labeled `mode: "paper"` end-to-end and never presented as on-chain balances.
@@ -95,7 +95,7 @@ The full runbook — resources, build, and teardown commands, including the vari
 
 - **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
 - **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
-- **Phase 1.2 — Onda MCP (specified, not built):** remote MCP server so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; see [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
+- **Phase 1.2 — Onda MCP (code shipped behind flag, not enabled on Azure):** remote MCP server (Streamable HTTP at `/mcp`, 6 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; it stays off until `MCP_ENABLED=true` and a custom domain exists. See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
 - **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.
 
@@ -112,7 +112,7 @@ Recorded 2026-11-27 (detail in spec 06):
 - **Execution stays off:** `EXECUTION_ENABLED=false` until the operator decides on funding.
 - **H11 — OPEN (owner: project owner):** xStocks eligibility for an operator in Argentina is still **unverified**. Until verified, the demo stays internal-only. This is the one open compliance item and it gates any third-party showing.
 
-Honest limits: paper execution only, no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
+Honest limits: paper execution only, MCP code shipped behind flag but not yet enabled on the Azure preview, no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
 
 ## Docs
 

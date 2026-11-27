@@ -239,6 +239,12 @@ button.posrow:hover{background:var(--panel)}
 .lrow .l-st{font-size:12px;white-space:nowrap}
 .st-executed{color:var(--green)} .st-rejected{color:var(--red)} .st-pending{color:var(--amber)} .st-expired{color:var(--faint)}
 
+.mcp-row{display:flex;flex-direction:column;gap:3px;padding:8px 0;border-top:1px solid var(--line);font-size:12.5px}
+.mcp-row .mcp-name{font-weight:600;color:#dfe3e8}
+.mcp-row .mcp-meta{color:var(--faint);font-size:12px;line-height:1.5}
+.mcp-row code{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+.mcp-revoke{align-self:flex-start;margin-top:2px}
+
 /* ---------- mobile ---------- */
 @media (max-width:820px){
   html,body{overflow-x:hidden}

@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es">
+<!-- Display language: es-AR default, English seed via ?lang=en / localStorage (src/i18n.ts). Static strings below carry data-i18n keys resolved at boot in main.ts. -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -12,26 +13,26 @@
 <body>
 <div class="app">
   <header class="topstrip">
-    <div class="brand"><span class="dot"></span>Onda <span class="mut" style="font-weight:400">· Tu agente inversor</span></div>
-    <nav class="tickers" id="ticker" aria-label="Precios en vivo de Jupiter"></nav>
-    <div class="mktstate"><span class="mdot"></span><span>Precios en vivo · Jupiter</span></div>
-    <span class="paper" title="Ejecución simulada sobre un ledger demo. Los precios son reales, de Jupiter.">Paper · sin plata real</span>
-    <div class="account"><span id="who"></span><button id="logout" class="linklike hidden">Salir</button></div>
+    <div class="brand"><span class="dot"></span>Onda <span class="mut" style="font-weight:400" data-i18n="tagline">· Tu agente inversor</span></div>
+    <nav class="tickers" id="ticker" data-i18n-aria="tickerAria" aria-label="Precios en vivo de Jupiter"></nav>
+    <div class="mktstate"><span class="mdot"></span><span data-i18n="livePrices">Precios en vivo · Jupiter</span></div>
+    <span class="paper" title="Ejecución simulada sobre un ledger demo. Los precios son reales, de Jupiter."><span data-i18n="paperBadge">Paper · sin plata real</span></span>
+    <div class="account"><button id="langBtn" class="linklike" type="button" aria-label="Language / Idioma">EN</button><span id="who"></span><button id="logout" class="linklike hidden" data-i18n="logout">Salir</button></div>
   </header>
 
   <div class="main">
     <section class="thread" aria-label="Conversación con el agente">
       <div class="thread-inner">
         <div id="authPanel" class="authcard">
-          <div class="auth-title">Entrá para empezar</div>
-          <p class="mut">Creá tu cuenta demo. No hay fondos reales ni claves: es un ledger paper con precios de verdad, de Jupiter en vivo.</p>
+          <div class="auth-title" data-i18n="authTitle">Entrá para empezar</div>
+          <p class="mut" data-i18n="authBody">Creá tu cuenta demo. No hay fondos reales ni claves: es un ledger paper con precios de verdad, de Jupiter en vivo.</p>
           <div class="auth-form">
-            <span class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="tu@email.com"></span>
-            <span class="field"><label for="pass">Contraseña</label><input id="pass" type="password" autocomplete="current-password" placeholder="Mínimo 8 caracteres"></span>
+            <span class="field"><label for="email" data-i18n="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="tu@email.com"></span>
+            <span class="field"><label for="pass" data-i18n="password">Contraseña</label><input id="pass" type="password" autocomplete="current-password" placeholder="Mínimo 8 caracteres" data-i18n-ph="passPh"></span>
           </div>
           <div class="auth-actions">
-            <button id="login" class="btn-light">Entrar</button>
-            <button id="reg" class="btn-ghost">Crear cuenta</button>
+            <button id="login" class="btn-light" data-i18n="login">Entrar</button>
+            <button id="reg" class="btn-ghost" data-i18n="register">Crear cuenta</button>
           </div>
           <p id="authMsg" class="form-msg" role="status"></p>
         </div>
@@ -40,18 +41,18 @@
         <div id="card"></div>
 
         <div class="composer" id="appComposer">
-          <div class="quick" aria-label="Montos rápidos">
+          <div class="quick" data-i18n-aria="quickAmounts" aria-label="Montos rápidos">
             <button type="button" data-amt="5">US$ 5</button>
             <button type="button" data-amt="10">US$ 10</button>
             <button type="button" data-amt="25">US$ 25</button>
           </div>
           <div class="inrow">
-            <textarea id="msg" rows="1" placeholder="Pedile algo a tu agente…" autocomplete="off" aria-label="Tu orden para el agente"></textarea>
+            <textarea id="msg" rows="1" placeholder="Pedile algo a tu agente…" data-i18n-ph="composerPh" autocomplete="off" aria-label="Tu orden para el agente"></textarea>
             <button id="send" class="send" aria-label="Enviar">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></svg>
             </button>
           </div>
-          <div class="hint">El agente propone y vos firmás. Nada se ejecuta sin tu gesto. Tope paper: US$ 25 por propuesta · US$ 50 por día.</div>
+          <div class="hint" data-i18n="composerHint">El agente propone y vos firmás. Nada se ejecuta sin tu gesto. Tope paper: US$ 25 por propuesta · US$ 50 por día.</div>
           <p id="chatMsg" class="form-msg" role="status"></p>
         </div>
       </div>
@@ -59,10 +60,10 @@
 
     <aside class="rail" aria-label="Portfolio">
       <div class="rsec">
-        <div class="rlabel">Valor total · paper</div>
+        <div class="rlabel" data-i18n="totalLabel">Valor total · paper</div>
         <div class="hero-num num" id="totalValue">—</div>
         <div class="hero-sub" id="totalDetail"><span class="mut">Entrá para ver tu portfolio paper</span></div>
-        <div class="chart hidden" id="sparkWrap"><svg id="spark" viewBox="0 0 316 54" preserveAspectRatio="none" aria-hidden="true"></svg><div class="spark-cap">Valor en esta sesión · precios en vivo</div></div>
+        <div class="chart hidden" id="sparkWrap"><svg id="spark" viewBox="0 0 316 54" preserveAspectRatio="none" aria-hidden="true"></svg><div class="spark-cap" data-i18n="sparkCap">Valor en esta sesión · precios en vivo</div></div>
       </div>
 
       <div class="rsec" id="walletSec">
@@ -71,25 +72,38 @@
           <span class="a-v num" id="availValue">—</span>
         </div>
         <p class="rail-note" id="walletDetail">Tu wallet paper es un ledger demo, sin claves ni fondos reales. Los precios vienen de Jupiter en vivo.</p>
-        <button id="mkWallet" class="btn-ghost wide hidden">Crear wallet paper</button>
+        <button id="mkWallet" class="btn-ghost wide hidden" data-i18n="createWallet">Crear wallet paper</button>
         <div id="depositBox" class="deposit hidden">
-          <input id="depAmt" type="number" value="100" min="1" step="1" aria-label="Monto a cargar en USD">
-          <button id="dep" class="btn-ghost">Cargar USDC paper</button>
+          <input id="depAmt" type="number" value="100" min="1" step="1" data-i18n-aria="depAmtAria" aria-label="Monto a cargar en USD">
+          <button id="dep" class="btn-ghost" data-i18n="deposit">Cargar USDC paper</button>
         </div>
       </div>
 
       <div class="rsec">
-        <div class="rlabel">Posiciones</div>
+        <div class="rlabel" data-i18n="positions">Posiciones</div>
         <div id="positions"></div>
       </div>
 
       <div class="rsec">
-        <div class="rlabel">Para mirar</div>
+        <div class="rlabel" data-i18n="watch">Para mirar</div>
         <div id="watchlist"></div>
       </div>
 
+      <div class="rsec" id="mcpSettings">
+        <div class="rlabel">Agentes externos (MCP)</div>
+        <p class="rail-note">Conectá <b>tu</b> agente (ChatGPT, Claude, Cursor) con un token propio. El agente cotiza y propone; la firma es siempre acá, con slide-to-sign. Hoy ningún agente descubre Onda solo: el usuario conecta Onda una vez (URL + su token) y recién ahí su ChatGPT/Claude/Cursor puede operar; el descubrimiento por directorios llega recién si OpenAI/Anthropic aprueban el listing.</p>
+        <p class="rail-note" id="mcpEndpoint"></p>
+        <div class="deposit">
+          <input id="mcpTokenName" type="text" placeholder="Nombre (ej: Cursor laptop)" maxlength="80" aria-label="Nombre del token MCP">
+          <button id="createMcpToken" class="btn-ghost" type="button">Crear token</button>
+        </div>
+        <label class="rail-note" style="display:block"><input id="mcpPreset" type="checkbox" checked> Operar con confirmación en Onda (lectura + quote + propose)</label>
+        <div id="mcpSecret" class="empty-pos hidden" style="margin-top:8px"></div>
+        <div id="mcpTokens" class="ledger"></div>
+      </div>
+
       <div class="rsec">
-        <div class="rlabel">Historial</div>
+        <div class="rlabel" data-i18n="history">Historial</div>
         <div id="history" class="ledger"></div>
       </div>
     </aside>

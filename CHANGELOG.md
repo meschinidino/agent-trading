@@ -1,9 +1,27 @@
 # Changelog
 
-## [0.3.2] - 2026-11-27
+## [Unreleased]
 
 ### Changed
-- Paleta de acento del sistema completo (landing `site/` + app `apps/web`) a la variante **V1 «Lima domado»** de AGEN-24 (elección de Dino, refs DIN-21): acento `#c6f24e` → `#a8c256` (chartreuse-oliva), tinta sobre acento `#101604` → `#141a08`, fondo sin cambio `#0a0b0d`. El acento queda reservado a acciones: CTA primario, knob/track del slide-to-sign, check de ejecutado, dot del logo y focus ring. En la landing se reduce la dosis: numerales de pasos `01/02/03`, flechas de estado y label de slider firmado pasan a neutro (`--muted`/`--text`). Verde/rojo de variación quedan sin cambio (`#3fce8f`/`#f27676`) y solo en texto numérico — esa separación por rol (acento = superficies de acción, variación = números) es la mitigación de AGEN-24 §checks para que el oliva no se confunda con el verde de suba. Contraste verificado: tinta-sobre-acento 8.9:1 (AAA), acento-sobre-fondo 9.9:1. Screenshots de `site/assets/` (start/confirm/receipt) re-capturados desde la app actualizada; sin cambios de layout, copy ni comportamiento.
+- Paleta de acento V1 Lima domado en landing + app (refs DIN-21).
+
+
+## [0.4.0] - 2026-11-27
+
+### Added
+- **Onda MCP (fase 1.2, spec 07) detrás de `MCP_ENABLED` (default `false`; no prendido en Azure):** servidor MCP remoto Streamable HTTP stateless en `/mcp` sobre el mismo Fastify, con el SDK oficial `@modelcontextprotocol/sdk@1.32.2`. 6 tools sin tool de ejecución/confirmación: `onda_list_assets`, `onda_get_portfolio`, `onda_get_limits`, `onda_quote_swap`, `onda_propose_trade`, `onda_get_confirmation`. Signing siempre en Onda: `propose` devuelve `signingUrl` a `/confirm/<id>` (deep link que la web carga con la sesión normal) y el cliente solo hace polling.
+- **API tokens por usuario:** endpoints `GET/POST/DELETE /api/v1/settings/mcp-tokens`, scopes cerrados `read:portfolio`/`quote`/`propose` (sin `execute`), secreto mostrado una sola vez, server-side solo SHA-256 hash, vencimiento 90 días (Q-M5). Revocar o vencer expira las confirmations pendientes creadas bajo ese token; `proposedVia {channel, tokenId, clientName, clientVersion}` queda en audit/confirmation y `decidedBy` sigue siendo el `userId` que firma en la web.
+- **Settings UI en la web** (mismo sistema de diseño, sin tocar colores): panel "Agentes externos (MCP)" con lista de tokens (nombre/scopes/created/expiresAt/lastUsedAt), crear con secreto de un solo uso, revocar, frase de descubrimiento honesto de spec 07 §5.6 y endpoint desde `PUBLIC_BASE_URL`.
+- Tests con **cliente MCP real** (SDK client por HTTP contra Fastify): lifecycle de tokens, tools/list, quote persistida→propose→poll, IDOR entre usuarios, scopes, token vencido/revocado y rate limit por token (60/min, quote 10/min, propose 5/min). Env nuevas: `MCP_ENABLED`, `PUBLIC_BASE_URL`.
+
+## [0.3.2] - 2026-11-27
+
+### Fixed
+- Landing screenshots now match the site language. The EN landing no longer shows the app in Spanish ("Confirmá tu compra", "Deslizá para firmar", "Invertís/Recibís"): `site/assets/` now ships real captures per language (`en/` + `es/` — start, confirmation card, receipt) and the EN/ES toggle swaps the images with the copy. No pixel-edited translations; every screenshot is a straight render of the real app.
+
+### Added
+- English display seed in the app (`apps/web/src/i18n.ts`): all UI chrome in `apps/web` (header, auth, portfolio rail, confirmation card, receipt, prompts) renders in English via `?lang=en`, the header ES/EN switch, `localStorage onda-app-lang`, or an English browser locale; number formatting follows the locale. Scope is display strings only — the agent parser/chat still understands es-AR only: chat orders are always composed in Spanish, server agent prose is not machine-translated, and the English UI + landing caption disclose that. This is a UI seed, not English chat support.
+
 
 ## [0.3.1] - 2026-11-27
 

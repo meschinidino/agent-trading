@@ -14,4 +14,9 @@ export const config = {
   paperFaucetCapUsd: Number(process.env.PAPER_FAUCET_CAP_USD || 1000),
   paperPerProposalCapUsd: Number(process.env.PAPER_PER_PROPOSAL_CAP_USD || 25),
   paperDailyCapUsd: Number(process.env.PAPER_DAILY_CAP_USD || 50),
+  mcpEnabled: process.env.MCP_ENABLED === "true",
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || "http://localhost:5173").replace(/\/$/, ""),
+  mcpContractVersion: "1.0.0",
+  mcpTokenTtlDays: 90,
+  serverVersion: "0.4.0",
 };
