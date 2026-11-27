@@ -538,11 +538,60 @@ function greetEmpty() {
   }
 }
 
+
+/* ---------- Settings: agentes externos (MCP) ---------- */
+function fmtDate(iso: string | null) { return iso ? new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—"; }
+async function loadMcpTokens() {
+  const box = $("mcpTokens"); if (!box) return;
+  try {
+    const r = await api("GET", "/api/v1/settings/mcp-tokens");
+    $("mcpEndpoint").innerHTML = r.mcpEnabled && r.mcpEndpoint ? `Endpoint MCP: <code>${esc(r.mcpEndpoint)}</code><br>Config en el cliente: <code>Authorization: Bearer &lt;token&gt;</code>` : "El servidor MCP está apagado en este entorno (MCP_ENABLED=false). Podés crear tokens, pero ningún agente los va a poder usar hasta prender el flag.";
+    const items = r.items || [];
+    box.innerHTML = items.length ? items.map((x: any) => `
+      <div class="mcp-row">
+        <span class="mcp-name">${esc(x.name)}</span>
+        <span class="mcp-meta">Scopes: ${esc((x.scopes || []).join(", ") || "—")}<br>Creado: ${fmtDate(x.createdAt)} · Vence: ${fmtDate(x.expiresAt)} · Último uso: ${fmtDate(x.lastUsedAt)}${x.revokedAt ? `<br>Revocado: ${fmtDate(x.revokedAt)}` : ""}</span>
+        ${x.revokedAt ? "" : `<button type="button" class="linklike danger mcp-revoke" data-revoke="${esc(x.id)}">Revocar</button>`}
+      </div>`).join("") : `<div class="empty-hist">Todavía no creaste tokens MCP.</div>`;
+    box.querySelectorAll("[data-revoke]").forEach((b) => b.addEventListener("click", async () => {
+      const btn = b as HTMLButtonElement; btn.disabled = true; btn.textContent = "Revocando…";
+      try { await api("DELETE", `/api/v1/settings/mcp-tokens/${btn.getAttribute("data-revoke")}`); await loadMcpTokens(); addMsg("bot", "Token MCP revocado. Las confirmations pendientes creadas bajo ese token vencieron."); }
+      catch (e: any) { addMsg("err", e.message); btn.disabled = false; btn.textContent = "Revocar"; }
+    }));
+  } catch { box.innerHTML = `<div class="empty-hist">Entrá para gestionar tokens MCP.</div>`; }
+}
+on("createMcpToken", "click", busy($("createMcpToken") as HTMLButtonElement, "Creando…", async () => {
+  const name = ($("mcpTokenName") as HTMLInputElement).value.trim() || "Mi agente";
+  const scopes = ($("mcpPreset") as HTMLInputElement).checked ? ["read:portfolio", "quote", "propose"] : ["read:portfolio"];
+  try {
+    const r = await api("POST", "/api/v1/settings/mcp-tokens", { name, scopes });
+    const box = $("mcpSecret"); box.classList.remove("hidden");
+    box.innerHTML = `<b>Token creado. Copialo ahora: se muestra una sola vez.</b><br><code>${esc(r.secret || r.token)}</code><br><span class="mut">Vence el ${fmtDate(r.expiresAt)}. Guardalo como header <code>Authorization: Bearer …</code> en tu cliente MCP.</span>`;
+    ($("mcpTokenName") as HTMLInputElement).value = "";
+    await loadMcpTokens();
+  } catch (e: any) { addMsg("err", e.message); }
+}));
+
+async function openDeepLinkConfirmation() {
+  const m = location.pathname.match(/^\/confirm\/([^/]+)$/);
+  if (!m) return;
+  const cid = decodeURIComponent(m[1]);
+  try {
+    await api("GET", "/api/v1/me");
+    const c = await api("GET", `/api/v1/confirmations/${cid}`);
+    const dec = NAMES[c.symbol] ? 8 : 8;
+    showCard({ id: c.id, symbol: c.symbol, side: c.side || "buy", human: NAMES[c.symbol] || c.symbol, amountUsd: c.amountUsd, quotedOut: c.quotedOut, minOut: c.minOut, slippageBps: c.slippageBps, priceImpactPct: c.priceImpactPct, expiresAt: c.expiresAt, mode: c.mode || "paper" }, `Confirmación MCP ${cid}`);
+    addMsg("bot", "Te prepararon esta compra desde tu agente externo. Revisala acá: recién firma o rechaza en Onda.");
+  } catch (e: any) { addMsg("err", "No pude abrir esa confirmación desde el link. Entrá y fijate tu historial: " + e.message); }
+}
+
 function showApp(email: string) {
   $("who").textContent = email;
   $("logout").classList.remove("hidden");
   $("authPanel").classList.add("hidden");
   refresh().then(() => greetEmpty());
+  loadMcpTokens();
+  openDeepLinkConfirmation();
   startPrices();
 }
 

@@ -89,6 +89,19 @@
         <div id="watchlist"></div>
       </div>
 
+      <div class="rsec" id="mcpSettings">
+        <div class="rlabel">Agentes externos (MCP)</div>
+        <p class="rail-note">Conectá <b>tu</b> agente (ChatGPT, Claude, Cursor) con un token propio. El agente cotiza y propone; la firma es siempre acá, con slide-to-sign. Hoy ningún agente descubre Onda solo: el usuario conecta Onda una vez (URL + su token) y recién ahí su ChatGPT/Claude/Cursor puede operar; el descubrimiento por directorios llega recién si OpenAI/Anthropic aprueban el listing.</p>
+        <p class="rail-note" id="mcpEndpoint"></p>
+        <div class="deposit">
+          <input id="mcpTokenName" type="text" placeholder="Nombre (ej: Cursor laptop)" maxlength="80" aria-label="Nombre del token MCP">
+          <button id="createMcpToken" class="btn-ghost" type="button">Crear token</button>
+        </div>
+        <label class="rail-note" style="display:block"><input id="mcpPreset" type="checkbox" checked> Operar con confirmación en Onda (lectura + quote + propose)</label>
+        <div id="mcpSecret" class="empty-pos hidden" style="margin-top:8px"></div>
+        <div id="mcpTokens" class="ledger"></div>
+      </div>
+
       <div class="rsec">
         <div class="rlabel" data-i18n="history">Historial</div>
         <div id="history" class="ledger"></div>

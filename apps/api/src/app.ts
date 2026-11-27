@@ -9,6 +9,8 @@ import { parseIntent, fmtAtomic } from "./parser.js";
 import { bySymbol, USDC } from "./registry.js";
 import { verifyRegistryToken, jupiterPrices } from "./jupiter.js";
 import { createConfirmation, createQuote, effectiveExpiry, err, executeConfirmation, getPaperWallet, PaperWalletProvider, portfolioFor, paperBalances } from "./services.js";
+import { issueToken, listTokens, revokeToken } from "./mcp-tokens.js";
+import { registerMcp, mcpRateLimit } from "./mcp.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 
@@ -30,7 +32,8 @@ export async function buildApp(dbPath = config.databasePath) {
       if (!v.verified) throw new Error(`Registry boot check FAILED (fail closed): ${t.symbol} ${t.mint} no verificado en Jupiter`);
     }
   }
-  app.get("/health", async () => ({ ok: true, version: "0.2.0", executionEnabled: config.executionEnabled, agentMode: config.agentMode }));
+  app.get("/health", async () => ({ ok: true, version: config.serverVersion, executionEnabled: config.executionEnabled, agentMode: config.agentMode, mcpEnabled: config.mcpEnabled, mcpContractVersion: config.mcpContractVersion }));
+  const checkQuoteBudget = () => { if (Date.now() > quotesPerHour.reset) { quotesPerHour.count = 0; quotesPerHour.reset = Date.now() + 3600000; } if (++quotesPerHour.count > 300) throw err("GLOBAL_QUOTE_BUDGET_EXCEEDED", "Presupuesto global de quotes agotado", 429); };
 
   function auth(req: any) {
     const sid = req.cookies?.session;
@@ -68,6 +71,11 @@ export async function buildApp(dbPath = config.databasePath) {
   });
   app.post("/api/v1/auth/logout", async (req: any, reply) => { try { auth(req); csrf(req); db.prepare("DELETE FROM sessions WHERE id=?").run(req.session.id); reply.clearCookie("session", { path: "/" }); return { ok: true }; } catch (e) { return replyErr(reply, e); } });
   app.get("/api/v1/me", async (req: any, reply) => { try { auth(req); return { id: req.user.id, email: req.user.email, csrfToken: req.session.csrf_token }; } catch (e) { return replyErr(reply, e); } });
+
+  app.get("/api/v1/settings/mcp-tokens", async (req: any, reply) => { try { auth(req); return { items: listTokens(db, req.user.id), mcpEnabled: config.mcpEnabled, mcpEndpoint: config.mcpEnabled ? `${config.publicBaseUrl}/mcp` : null, expiresInDays: config.mcpTokenTtlDays }; } catch (e) { return replyErr(reply, e); } });
+  app.post("/api/v1/settings/mcp-tokens", async (req: any, reply) => { try { auth(req); csrf(req); const { token, secret } = issueToken(db, req.user.id, req.body?.name, req.body?.scopes); return reply.code(201).send({ ...token, token: secret, secret }); } catch (e) { return replyErr(reply, e); } });
+  app.delete("/api/v1/settings/mcp-tokens/:id", async (req: any, reply) => { try { auth(req); csrf(req); return revokeToken(db, req.user.id, req.params.id); } catch (e) { return replyErr(reply, e); } });
+  app.post("/api/v1/settings/mcp-tokens/:id/revoke", async (req: any, reply) => { try { auth(req); csrf(req); return revokeToken(db, req.user.id, req.params.id); } catch (e) { return replyErr(reply, e); } });
 
   app.post("/api/v1/wallets", async (req: any, reply) => {
     try { auth(req); csrf(req); const w = PaperWalletProvider.createWallet(db, req.user.id); return reply.code(201).send({ id: w.id, mode: w.mode, provider: w.provider, label: "Paper wallet (ledger demo, sin claves)" }); } catch (e) { return replyErr(reply, e); }
@@ -157,9 +165,11 @@ export async function buildApp(dbPath = config.databasePath) {
       appendAudit(db, c.id, req.user.id, "rejected", { decidedBy: req.user.id });
       return { id: c.id, status: "rejected", message: "Compra cancelada. No se movió nada de tu wallet." }; } catch (e) { return replyErr(reply, e); }
   });
-  app.get("/api/v1/confirmations/:id", async (req: any, reply) => { try { auth(req); const c = ownedConfirmation(req); return { id: c.id, status: c.status, mode: c.mode, symbol: c.symbol, expiresAt: c.expires_at, txSignature: null }; } catch (e) { return replyErr(reply, e); } });
+  app.get("/api/v1/confirmations/:id", async (req: any, reply) => { try { auth(req); const c = ownedConfirmation(req); const tkn = bySymbol(c.symbol); const dec = tkn?.decimals ?? 8; return { id: c.id, status: c.status, mode: c.mode, symbol: c.symbol, side: c.side, amountUsd: Number(c.amount_in_atomic) / 1e6, quotedOut: String(Number(c.quoted_out_atomic) / 10 ** dec), minOut: String(Number(c.min_out_atomic) / 10 ** dec), slippageBps: c.slippage_bps, priceImpactPct: c.price_impact_pct, expiresAt: c.expires_at, txSignature: null, proposedVia: c.proposed_via ? JSON.parse(c.proposed_via) : null }; } catch (e) { return replyErr(reply, e); } });
   app.get("/api/v1/portfolio", async (req: any, reply) => { try { auth(req); return await portfolioFor(db, req.user.id); } catch (e) { return replyErr(reply, e); } });
   app.get("/api/v1/transactions", async (req: any, reply) => { try { auth(req); const rows = db.prepare("SELECT * FROM confirmations WHERE user_id=? ORDER BY created_at DESC LIMIT 50").all(req.user.id) as any[]; return { items: rows.map((c) => ({ id: c.id, type: c.side, symbol: c.symbol, amountUsd: c.side === "buy" ? Number(c.amount_in_atomic) / 1e6 : null, status: c.status, mode: c.mode, txSignature: null, createdAt: c.created_at })) }; } catch (e) { return replyErr(reply, e); } });
+
+  registerMcp(app as any, db, { checkQuoteBudget, rateLimitMcp: mcpRateLimit });
 
   if (process.env.SERVE_WEB === "true") {
     const webDir = process.env.WEB_DIST || "/app/apps/web/dist";
