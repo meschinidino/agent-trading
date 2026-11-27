@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 2026-11-27
+
+### Changed
+- Decisiones **Q-M1..Q-M5** de [07-onda-mcp.md](docs/specs/07-onda-mcp.md) registradas (Dino, 2026-11-27): auth v1 por API tokens (OAuth 2.1 → fase 1.3), directorios solo tras connects manuales probados + H11 cerrado, dominio propio obligatorio antes del onboarding público de MCP (Azure staging-only para `/mcp`), estado por polling sin push en 1.2, y tokens de agente con vencimiento a los 90 días con `expiresAt` visible y efecto de revocación al vencer. Sin código de producto.
+
 ## [0.2.1] - 2026-11-27
 
 ### Added

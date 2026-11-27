@@ -12,7 +12,7 @@ Definir Onda como infraestructura operable desde agentes externos vía Model Con
 - Catálogo de 6 tools con schemas, anotaciones, errores y mapeo a servicios internos de [05-backend-api.md](05-backend-api.md).
 - Flujos de onboarding por cliente (ChatGPT, Claude, Claude Code, Cursor) y walkthrough completo.
 - Seguridad, abuso, kill switch, compatibilidad, flags, observabilidad.
-- Roadmap fase 1.2 vs fases posteriores y preguntas abiertas para el titular del proyecto (con recomendación).
+- Roadmap fase 1.2 vs fases posteriores y decisiones registradas del titular del proyecto (§8.2).
 
 ## Fuera de alcance
 
@@ -47,17 +47,18 @@ Lo que Onda-the-infra vende no es "otro chatbot": es la infraestructura que un a
 #### 2.1 Transporte canónico: Streamable HTTP remoto
 
 - **Endpoint:** `POST/GET https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp` (mismo origen y mismo servicio Azure Container Apps que la API actual; cuando exista dominio propio, `https://<dominio-onda>/mcp`). Puerto 443, HTTPS obligatorio.
+- **Gate de dominio propio (Q-M3, decidido 2026-11-27):** el onboarding público de MCP exige dominio propio (p. ej. `https://<dominio-onda>/mcp`) **antes** de abrirse; el hostname `*.azurecontainerapps.io` es staging-only para MCP. La preview web puede seguir en el hostname de Azure hasta que exista el dominio — la restricción aplica a la superficie de onboarding `/mcp`, no a la web.
 - **Transporte:** Streamable HTTP según MCP spec `2025-06-18` (y compatibilidad con `2025-03-26`, que lo introdujo reemplazando HTTP+SSE). El servidor acepta JSON-RPC por `POST`; `GET` solo si se habilita streaming SSE de notificaciones (v1 no lo requiere, ver §2.2).
 - **Por qué no stdio como superficie pública:** stdio es local por diseño (proceso hijo del cliente, credenciales por entorno según la spec de autorización MCP). ChatGPT y Claude (web/desktop) conectan solo a servidores MCP **remotos** por HTTPS; un servidor stdio jamás es alcanzable desde sus nubes. stdio queda como variante opcional de desarrollo local (§2.3).
 - **Descubrimiento dentro del protocolo:** tras `initialize`, el cliente recibe `serverInfo` (`name: "onda"`, `title: "Onda — Tu agente inversor"`, `version` = versión del contrato MCP, ver §2.4) y `instructions` cortas que declaran: qué hace Onda, que opera solo SPYx/AAPLx/NVDAx desde USDC, que toda operación requiere firma del usuario en Onda, y que hoy `mode` es `"paper"`. La descripción del servidor y de cada tool es la superficie de tool-selection del LLM: se escribe para el modelo, no para el humano (ver §4).
 
 #### 2.2 Sesión y statelessness
 
-**Decisión propuesta: servidor stateless por request (sin `Mcp-Session-Id` obligatorio en v1).** Cada llamada a una tool es autocontenida: auth por header en cada request (exigencia de la spec de autorización MCP: el token viaja en *cada* request HTTP), y todo el estado durable (quotes, confirmations, ledger) ya vive en la base del backend según [05-backend-api.md](05-backend-api.md). Razones:
+**Decisión (Q-M4, registrada el 2026-11-27): servidor stateless por request (sin `Mcp-Session-Id` obligatorio en v1) y entrega de estado por polling en v1.** Cada llamada a una tool es autocontenida: auth por header en cada request (exigencia de la spec de autorización MCP: el token viaja en *cada* request HTTP), y todo el estado durable (quotes, confirmations, ledger) ya vive en la base del backend según [05-backend-api.md](05-backend-api.md). Razones:
 
 - El estado de negocio nunca debió vivir en la sesión MCP: una quote o una confirmation se recuperan por ID con ownership, igual que en REST.
 - Stateless simplifica escalar y reiniciar el contenedor en Azure (la sesión SQLite ya persiste en Azure Files; no se suma un store de sesiones MCP).
-- Los clientes objetivo (ChatGPT, Claude, Cursor, Claude Code) soportan Streamable HTTP stateless; el polling de estado lo hace el agente con `onda_get_confirmation`, no hacen falta notificaciones server→client en v1.
+- Los clientes objetivo (ChatGPT, Claude, Cursor, Claude Code) soportan Streamable HTTP stateless; el polling de estado lo hace el agente con `onda_get_confirmation`, no hacen falta notificaciones server→client en v1. **Las notificaciones push quedan fuera de fase 1.2**: son una mejora posterior, cuando los clientes MCP las soporten de forma confiable.
 
 Si una fase posterior necesita streaming (p. ej. avisar `executed` sin polling), se habilita `GET` con SSE y sesiones, como cambio menor versionado (§2.4), sin romper v1.
 
@@ -80,9 +81,9 @@ Opcional y fuera del path de release: un shim stdio local que reenvía al endpoi
 |---|---|---|---|
 | **A. OAuth 2.1 completo** (Onda como authorization server: RFC 9728 Protected Resource Metadata, RFC 8414 metadata, RFC 7591 Dynamic Client Registration, PKCE, resource indicators RFC 8707) | Implementar AS propio o integrar uno; cada cliente se registra y hace el flow | La mejor: "Conectar → login en Onda → listo", sin copiar tokens | Es lo que la spec MCP `2025-06-18` prescribe para HTTP remoto y lo que Claude/ChatGPT esperan para connectors "de directorio". Es también lo más caro de construir bien |
 | **B. API tokens bearer de larga vida** emitidos por Onda (el usuario crea un token en Settings, lo pega en el cliente) | Tabla de tokens hasheados + scopes + revocación; el cliente lo manda como `Authorization: Bearer` | Media: copiar/pegar una vez por cliente. Claude lo soporta vía *Request headers* en custom connectors; Claude Code vía `--header`; Cursor vía `headers` en `mcp.json`; ChatGPT lo soporta en el alta manual pero su flujo de directorio favorece OAuth | Funciona hoy en todos los clientes objetivo para conexión manual |
-| **C. Ambas** (B en v1, A como evolución) | B ahora; A sin cambiar tools ni scopes | v1 manual, después one-click | Ruta recomendada |
+| **C. Ambas** (B en v1, A como evolución) | B ahora; A sin cambiar tools ni scopes | v1 manual, después one-click | Ruta decidida (Q-M1) |
 
-**Recomendación (decisión para el titular del proyecto, Q-M1 en §8): v1 = opción B (API tokens), fase 1.3 = opción A (OAuth 2.1).** B es simple, revocable y auditable hoy; A es requisito práctico para directorios y para que el onboarding sea "Conectar" sin copy-paste, pero construir un authorization server correcto (DCR, PKCE, audience binding) es un proyecto en sí y no debe bloquear el primer connect manual que pruebe la tesis BYOA.
+**DECIDIDO (Q-M1, 2026-11-27): v1 = opción B (API tokens), fase 1.3 = opción A (OAuth 2.1).** B es simple, revocable y auditable hoy; A es requisito práctico para directorios y para que el onboarding sea "Conectar" sin copy-paste, pero construir un authorization server correcto (DCR, PKCE, audience binding) es un proyecto en sí y no debe bloquear el primer connect manual que pruebe la tesis BYOA.
 
 En ambas opciones el servidor MCP actúa como *resource server*: valida el bearer en cada request, rechaza con `401` (y, cuando exista OAuth, con `WWW-Authenticate` apuntando al metadata RFC 9728, como exige la spec).
 
@@ -91,7 +92,8 @@ En ambas opciones el servidor MCP actúa como *resource server*: valida el beare
 - **Emisión:** en Onda web → Settings → "Agentes externos (MCP)": el usuario crea un token con nombre libre (p. ej. "ChatGPT", "Cursor laptop"). El secreto se muestra **una sola vez** al crearlo. Formato: prefijo `onda_mcp_` + al menos 32 bytes aleatorios en base64url. Server-side se guarda solo `SHA-256(token)` (o HMAC con secreto de servidor), nunca el token en claro.
 - **Scopes (allowlist cerrada):** `read:portfolio`, `quote`, `propose`. **No existe scope `execute` ni `confirm`**: no hay operación MCP que los consuma, porque confirmar/firmar es exclusivo de la sesión web de Onda. Un token sin `propose` puede cotizar y consultar pero no crear confirmations; uno sin `quote` no persiste quotes.
   - Presets al crear: "Solo lectura" (`read:portfolio`) y "Operar con confirmación en Onda" (`read:portfolio` + `quote` + `propose`; es el default sugerido, con copy que aclara que operar siempre exige firmar en Onda).
-- **Rotación y revocación:** el usuario puede revocar un token en cualquier momento desde Settings (efecto inmediato, ver kill switch §6.4) y crear uno nuevo para rotar. Sin expiración automática en v1, pero Settings muestra `lastUsedAt` y creaciones de más de 90 días se marcan visualmente como viejas. (Expiración configurable queda para la fase OAuth.)
+- **Rotación y revocación:** el usuario puede revocar un token en cualquier momento desde Settings (efecto inmediato, ver kill switch §6.4) y crear uno nuevo para rotar.
+- **Vida útil y expiración (Q-M5, decidido 2026-11-27):** todo token de agente vence a los **90 días** de emitido. El aviso es en tres lugares: (1) al emitirlo, Settings muestra la fecha de vencimiento (`expiresAt`) junto al secreto que se ve una sola vez; (2) durante su vida, Settings muestra `createdAt`, `expiresAt` y `lastUsedAt` por token, así el vencimiento es visible desde el día uno y no una sorpresa; (3) al vencer, el token **deja de autenticar** (toda call responde `401`/`UNAUTHORIZED`) y las confirmations en `proposed`/`pending_confirmation` creadas bajo ese token vencen según la regla de revocación de §6.4 (las ya firmadas/`executing` no se tocan). Rotar es crear uno nuevo antes del vencimiento; no hay renovación silenciosa ni extensión del token viejo.
 - **Mapeo a usuario:** `token → userId` es la única autoridad. Toda tool resuelve `userId` del token y aplica **las mismas reglas de ownership de [05-backend-api.md](05-backend-api.md)**: IDs ajenos responden como inexistentes (en MCP: error `NOT_FOUND` sin filtrar existencia), IDs impredecibles (UUID), y ninguna tool acepta `userId`, wallet address ni mint como parámetro de autoridad.
 - **Identidad del cliente:** en cada call se registra el cliente MCP declarado en `initialize` (`clientInfo.name/version`) junto al `tokenId`. El audit de la confirmation guarda `decidedBy = userId` (quien firma en Onda, [04-confirmation-gate.md](04-confirmation-gate.md)) y, como dato nuevo, `proposedVia: { channel: "mcp", tokenId, clientName, clientVersion }`. La firma sigue siendo del usuario en Onda; el agente queda registrado como *proponente*, nunca como decisor.
 - **Transporte del token por cliente:** header `Authorization: Bearer <token>` (Claude Code `--header`, Cursor `headers`, Claude custom connector *Request headers*). Jamás en query string (la spec MCP lo prohíbe para access tokens y aplica igual a API tokens).
@@ -194,7 +196,7 @@ Pasos exactos con la superficie actual de cada cliente (verificadas en §3.5; la
 
 1. El usuario entra a Onda web, se registra/inicia sesión y crea su wallet paper (flujo actual).
 2. En **Settings → Agentes externos (MCP)** crea un token ("Operar con confirmación en Onda"), lo copia una vez y lo guarda.
-3. URL del servidor para todos los clientes: `https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp`.
+3. URL del servidor para todos los clientes: `https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp` — hostname de staging para MCP (Q-M3): el onboarding público usa el dominio propio cuando exista (ver §2.1). Hasta que Q-M2 se cumpla (connects manuales probados + H11 cerrado), la conexión es **solo manual** (URL + token): no hay listing en directorios.
 
 #### 5.2 ChatGPT
 
@@ -242,7 +244,7 @@ Guardar y reiniciar Cursor; las tools `onda_*` aparecen en Available Tools.
 La visión del producto — decirle a ChatGPT "quiero comprar S&P 500", que busque online, encuentre a Onda y se conecte solo — **no existe hoy como mecanismo**: ningún cliente consulta un registro global en tiempo de chat, y Onda no puede inyectarse en una conversación ajena. Lo que sí existe y esta spec habilita:
 
 1. **Connect manual una vez** (§5.2–§5.5): desde ahí, el agente ya conectado sí resuelve "quiero comprar S&P 500" → SPYx vía `onda_list_assets` sin ayuda del usuario.
-2. **Directorios (fase posterior, §8):** si el listing se aprueba en ChatGPT Plugins y/o Claude Connectors Directory, el usuario encuentra "Onda" buscando dentro del directorio de su cliente y conecta con OAuth (fase 1.3). Incluso aprobado, el primer connect y la firma siguen siendo actos del usuario.
+2. **Directorios (fase posterior, §8):** los listings en ChatGPT Plugins y/o Claude Connectors Directory se persiguen **solo después** de que los connects manuales estén probados **y** H11 (elegibilidad xStocks en Argentina) esté cerrado (Q-M2, decidido 2026-11-27); hasta entonces, conexión manual solamente. Si el listing se aprueba, el usuario encuentra "Onda" buscando dentro del directorio de su cliente y conecta con OAuth (fase 1.3). Incluso aprobado, el primer connect y la firma siguen siendo actos del usuario.
 3. **Web abierta:** que ChatGPT navegando encuentre la landing de Onda con instrucciones de conexión es contenido/marketing, no un protocolo: puede ayudar a que el *usuario* decida conectar, nunca conecta por él.
 
 Ningún copy de Onda (landing, ayuda, respuestas MCP) puede prometer auto-descubrimiento ni conexión sin acción del usuario.
@@ -284,7 +286,7 @@ El agente externo ve: activos del registry, portfolio del usuario (saldos y posi
 #### 6.4 Kill switch
 
 - **Revocar un token** (Settings, un click) invalida el bearer al instante (la validación consulta estado del token en cada request; cache máxima tolerable: 0 en v1 dado el volumen).
-- **Efecto sobre pendientes:** al revocar, las confirmations en `proposed`/`pending_confirmation` creadas por ese token (`proposedVia.tokenId`) pasan a `expired` en la misma operación y su `signingUrl` deja de funcionar. Las ya `confirmed`/`executing` **no** se tocan: ya hubo firma humana en Onda y frenarlas crearía el riesgo inverso. El evento queda en audit.
+- **Efecto sobre pendientes:** al revocar, las confirmations en `proposed`/`pending_confirmation` creadas por ese token (`proposedVia.tokenId`) pasan a `expired` en la misma operación y su `signingUrl` deja de funcionar. La expiración por vencimiento de 90 días (Q-M5, §3.2) produce exactamente este mismo efecto. Las ya `confirmed`/`executing` **no** se tocan: ya hubo firma humana en Onda y frenarlas crearía el riesgo inverso. El evento queda en audit.
 - **Kill switch global:** `MCP_ENABLED=false` (§7) apaga el endpoint `/mcp` completo (todas las tools devuelven `MCP_DISABLED` o el endpoint responde 404, a definir en implementación; criterio: que ningún cliente crea que Onda "anda mal" de forma ambigua) sin tocar la web ni la API.
 
 ### 7. Contrato de compatibilidad
@@ -309,19 +311,19 @@ La presentación y la decisión (`/present`, `/confirm`, `/reject`) **no** se ma
 - **Flag:** `MCP_ENABLED` (default `false` hasta shippear fase 1.2). Con el flag apagado, el resto del sistema no sabe que MCP existe. Flags de ejecución (`EXECUTION_ENABLED`, `EXECUTION_MODE=paper`) son los mismos de siempre: MCP no agrega un camino para prenderlos.
 - **Hosting:** mismo proceso/origen que la API en Azure Container Apps (ruta `/mcp` en el mismo Fastify o servicio hermano detrás del mismo hostname). Nada de un deploy separado con su propia base: comparte SQLite y servicios.
 - **Observabilidad:** métricas por `tokenId` y por tool (calls, errores por `code`, latencia), correlación `confirmationId ↔ tokenId ↔ clientName` en logs/audit (`proposedVia`, §3.2), y alerta sobre picos de `RATE_LIMITED`/`UNAUTHORIZED` por token (señal de loop o de token filtrado). Sin contenido de tokens ni de `rawIntent` en logs de la capa MCP.
-- **Evolución de spec 05:** esta spec **extiende** spec 05 en dos puntos que la implementación debe reflejar allí o en el código como fuente: la tabla de tokens MCP (`id, userId, name, tokenHash, scopes, createdAt, lastUsedAt, revokedAt`) y el campo `proposedVia` en el audit de confirmations. Hasta implementarlo, spec 05 sigue siendo el contrato vigente y esta es su extensión propuesta.
+- **Evolución de spec 05:** esta spec **extiende** spec 05 en dos puntos que la implementación debe reflejar allí o en el código como fuente: la tabla de tokens MCP (`id, userId, name, tokenHash, scopes, createdAt, expiresAt, lastUsedAt, revokedAt`) y el campo `proposedVia` en el audit de confirmations. Hasta implementarlo, spec 05 sigue siendo el contrato vigente y esta es su extensión propuesta.
 
-### 8. Roadmap y preguntas abiertas
+### 8. Roadmap y decisiones registradas
 
 #### 8.1 Fase 1.2 (esta spec) vs después
 
 | Entra en 1.2 (implementación siguiente) | Queda para después |
 |---|---|
 | Servidor MCP Streamable HTTP stateless en `/mcp`, `MCP_ENABLED` default off | OAuth 2.1 completo (authorization server, DCR, metadata) → **fase 1.3** |
-| API tokens v1 con scopes, emisión/rotación/revocación en Settings | Submissions a directorios (OpenAI Plugins, Claude Connectors Directory) con sus reviews, dominio verificado y test accounts → tras probar connects manuales |
-| Las 6 tools de §4 sobre los servicios existentes | Notificaciones server→client / streaming (si el polling molesta) |
-| Onboarding manual documentado para ChatGPT, Claude, Claude Code, Cursor | Venta (xStock → USDC) como tools nuevas, si entra al alcance del producto |
-| Kill switch por token + global | Expiración configurable de tokens y tokens por-dispositivo |
+| API tokens v1 con scopes, emisión/rotación/revocación en Settings, con vencimiento a los 90 días (Q-M5) | Submissions a directorios (OpenAI Plugins, Claude Connectors Directory) con sus reviews, dominio verificado y test accounts → solo tras connects manuales probados y H11 cerrado (Q-M2) |
+| Las 6 tools de §4 sobre los servicios existentes | Notificaciones server→client / push (Q-M4): mejora posterior, cuando los clientes MCP las soporten; en 1.2 el estado se entrega por polling con `onda_get_confirmation` |
+| Onboarding manual documentado para ChatGPT, Claude, Claude Code, Cursor (solo manual: URL + token) | Dominio propio para `/mcp` como precondition del onboarding público (Q-M3): el hostname de Azure es staging-only para MCP; la preview web puede seguir ahí |
+| Kill switch por token + global | Tokens por-dispositivo; el vencimiento de 90 días ya es v1 (Q-M5), lo configurable llega con OAuth (fase 1.3) |
 
 #### 8.2 Riesgos
 
@@ -334,20 +336,24 @@ La presentación y la decisión (`/present`, `/confirm`, `/reject`) **no** se ma
 
 - [ ] No existe ninguna tool MCP que ejecute, confirme o rechace: el catálogo completo es el de §4 y un "sí" en un chat externo no produce ningún cambio de estado firmable (verificable contra el schema publicado del servidor).
 - [ ] Las 6 tools llaman a los mismos servicios que la API de spec 05 (tabla §7.1); no hay regla de negocio (slippage, caps, registry, TTL, ownership) implementada dos veces.
-- [ ] Un token revocado deja de autenticar de inmediato y expira las confirmations pendientes que creó; un token sin scope `propose` no crea confirmations; ningún token puede leer confirmations ajenas (equivalente MCP del test IDOR de spec 05).
+- [ ] Un token revocado deja de autenticar de inmediato y expira las confirmations pendientes que creó; un token vencido (90 días, Q-M5) produce el mismo efecto y Settings muestra su `expiresAt` desde la emisión; un token sin scope `propose` no crea confirmations; ningún token puede leer confirmations ajenas (equivalente MCP del test IDOR de spec 05).
 - [ ] `onda_quote_swap` rechaza impacto >3%, aplica slippage solo-backend y persiste quote single-redemption; `onda_propose_trade` con quote vencida/consumida/ajena no crea nada.
 - [ ] Toda respuesta de tool lleva el `mode` correcto (`"paper"` hoy) y ninguna respuesta paper incluye `txSignature` ni link a explorer.
 - [ ] El walkthrough §5.7 funciona en al menos Claude (custom connector) y Claude Code contra el servidor remoto: quote → propose → firma en Onda → poll con `executed` y recibo paper correcto.
 - [ ] Con `MCP_ENABLED=false` el endpoint no opera y web/API no se enteran; con `true`, las métricas por token distinguen calls, errores y cliente.
 - [ ] La ayuda de onboarding incluye la frase de descubrimiento honesto de §5.6 y ningún copy promete auto-descubrimiento ni ejecución desde el chat.
 
-## Preguntas abiertas (para el titular del proyecto, con recomendación)
+## Decisiones registradas
 
-- **Q-M1 — Auth v1: ¿API tokens ahora, OAuth 2.1 después?** *Recomendación: sí — tokens bearer v1 (fase 1.2) y OAuth 2.1 en 1.3, como está especificado en §3.* La alternativa (OAuth primero) retrasa el primer connect real meses y es requisito de directorio, no de uso manual.
-- **Q-M2 — ¿Listings en directorios (OpenAI/Anthropic) como objetivo de 1.3 junto a OAuth?** *Recomendación: sí, pero solo después de que los connects manuales funcionen y con H11 cerrado o con listing acotado a demo interna/paper claramente rotulada.* Un listing público con ejecución paper y H11 abierto es el peor de los mundos.
-- **Q-M3 — ¿Dominio propio para `/mcp` antes de publicar onboarding?** La URL larga de Azure funciona pero es frágil como dirección pública permanente (si el recurso se recrea, cambia). *Recomendación: sí si el onboarding va a salir de la demo interna; no bloquea 1.2 interno.*
-- **Q-M4 — ¿El polling del agente alcanza o se quiere aviso push (SSE/notificaciones MCP) en 1.2?** *Recomendación: polling en 1.2 (simple, stateless); streaming solo si la UX real lo pide.*
-- **Q-M5 — ¿Tokens con expiración automática (p. ej. 90 días) desde v1?** *Recomendación: no obligatoria en v1 (fricción sin ganancia clara con revocación + `lastUsedAt` visibles); sí como opción del usuario.*
+Registradas el **2026-11-27**, decididas por **Dino** (titular del proyecto). Todas coinciden con la recomendación original de esta spec.
+
+| ID | Decisión | Fundamento (una línea) |
+|---|---|---|
+| **Q-M1** | Auth v1 = API tokens por usuario (scopes `read:portfolio`/`quote`/`propose`, revocables); OAuth 2.1 pasa a fase 1.3 (ya especificado en §3.4), sin cambios. | Los tokens son simples, revocables y auditables hoy; OAuth es requisito de directorio, no del primer connect manual que prueba la tesis BYOA. |
+| **Q-M2** | Listings en directorios (OpenAI/Anthropic) solo después de que los connects manuales estén probados **y** H11 (elegibilidad xStocks en Argentina) esté cerrado; hasta entonces, conexión manual solamente (URL + token). | Un listing público con ejecución paper y H11 abierto es el peor de los mundos; primero se prueba el connect a mano. |
+| **Q-M3** | Dominio propio obligatorio **antes** del onboarding público de MCP (p. ej. un dominio de producto con endpoint `/mcp`); el hostname `*.azurecontainerapps.io` es staging-only para MCP. La preview web puede seguir en el hostname de Azure hasta que exista el dominio: la restricción aplica a la superficie de onboarding `/mcp`. | La URL de Azure es frágil como dirección pública permanente (si el recurso se recrea, cambia) y no es una dirección que un usuario deba pegar en su cliente para siempre. |
+| **Q-M4** | Entrega de estado v1 = polling (`onda_get_confirmation`); sin trabajo de push en fase 1.2. Las notificaciones push son una mejora posterior, cuando los clientes MCP las soporten. | Polling es simple y stateless, y los clientes objetivo todavía no soportan push de forma confiable. |
+| **Q-M5** | Los tokens de agente vencen a los **90 días**, con aviso previo al usuario: fecha de vencimiento visible al emitir y en Settings (`expiresAt`, §3.2); al vencer, el token deja de autenticar y las confirmations pendientes creadas bajo él vencen según la regla de revocación de §6.4. | Una vida acotada limita el daño de un token filtrado sin pagar la fricción de renovaciones constantes. |
 
 ---
 
