@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-27
+
+### Fixed
+- **Clone desde cero roto en `pnpm install` (refs DIN-28):** `pnpm-workspace.yaml` solo allow-listeaba el build script de `esbuild`; en un clone fresco con pnpm 12 el install abortaba con `ERR_PNPM_IGNORED_BUILDS` para `argon2`, `bufferutil` y `utf-8-validate` (el Dockerfile ya pasaba esos `--allow-build` a mano, por eso prod nunca lo vio). Ahora `allowBuilds` declara los cuatro paquetes y el install limpio pasa sin `pnpm approve-builds` interactivo. Verificado en clone público anónimo: `pnpm install` → `pnpm build` → `pnpm test` 29/29.
+
+### Changed
+- **Quickstart reescrito en README EN/ES (refs DIN-28):** prerrequisitos explícitos (Node >= 24, pnpm 12.11.2 vía `packageManager`/`corepack`), advertencia de que la API no carga `.env` automáticamente (sin dotenv: hay que exportar las variables o sourcear el archivo), arranque web con `VITE_API_URL=http://localhost:3001` (sin eso el cliente llama al mismo origen y no encuentra la API en dev), notas de primer arranque (boot fail-closed contra Jupiter con reintentos por rate-limit del tier keyless, `./data/` escribible) y requisitos previos de `pnpm e2e`.
+- **Sección "Run the Onda MCP locally" / "Correr el MCP de Onda localmente" en README EN/ES (refs DIN-28):** cómo prender `MCP_ENABLED`, crear el token en Settings y conectar un cliente MCP real contra `http://localhost:3001/mcp` (7 tools). Verificado con el cliente del SDK: token creado vía API, `listTools` + `onda_list_assets` + `onda_get_limits` OK.
+- **`.env.example` documenta el serving de producción (refs DIN-28):** nota de que el archivo no se auto-carga y vars comentadas `SERVE_WEB`/`WEB_DIST` que el código lee en `apps/api/src/app.ts`.
+- **`CONTRIBUTING.md` nuevo (refs DIN-28):** checklist corto de PR con la regla de paper trail (VERSION + CHANGELOG + refs sincronizadas) que antes vivía solo en las reglas del crew.
+- **Conteo de tools MCP corregido a 7** en README EN/ES y `docs/roadmap.md` (quedó en 6 tras sumar `onda_get_asset_info` en 0.5.0).
+
 ## [0.5.2] - 2026-11-27
 
 ### Fixed

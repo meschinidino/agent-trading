@@ -4,7 +4,7 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Version 0.5.2** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Version 0.5.3** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
@@ -24,7 +24,7 @@ The thesis is narrow on purpose: an LLM can operate a real wallet usefully if th
 
 ## Status
 
-Onda 0.5.2 is a live internal demo on real infrastructure, running paper execution:
+Onda 0.5.3 is a live internal demo on real infrastructure, running paper execution:
 
 - **Terminal amable UI** (the approved design direction): a cold dark terminal, Jupiter swap-object confirmation with slide-to-sign, a thread-centered layout, a portfolio rail and a live prices strip. This replaced the earlier “editorial C” direction after a teardown of comparable products; C is historical, not current.
 - **Real market data, simulated fills.** Quotes, prices, `simulateTransaction` checks and the agent wallet's on-chain balances are real and live. Paper USDC and paper xStocks are local ledger rows, labeled `mode: "paper"` end-to-end and never presented as on-chain balances.
@@ -33,20 +33,73 @@ Onda 0.5.2 is a live internal demo on real infrastructure, running paper executi
 
 ## Quickstart
 
-Requires Node 24 and pnpm 12 (both pinned in `package.json`).
+Prerequisites: **Node >= 24** (`engines` in `package.json`) and **pnpm 12.11.2** (pinned by the `packageManager` field; enable it with `corepack enable` or install pnpm 12 directly). Verified on macOS; the same commands apply on Linux. Internet access is required: quotes, the registry boot check and paper-fill simulations call the live Jupiter and Solana RPC endpoints.
+
+From a fresh clone, run everything from the repository root:
 
 ```bash
-pnpm install
-cp .env.example .env   # set a real SESSION_SECRET; the rest have demo defaults
-pnpm --filter api build
-pnpm test
-SESSION_SECRET=<long-secret> node apps/api/dist/index.js   # API on :3001
-pnpm --filter web dev                                      # web on :5173
+corepack enable   # provides the pinned pnpm 12.11.2 (skip if pnpm 12 is already installed)
+pnpm install      # native build scripts for argon2/bufferutil/utf-8-validate are allow-listed in pnpm-workspace.yaml
+pnpm build        # builds apps/api (tsc) and apps/web (vite)
+pnpm test         # 29 tests (apps/api, vitest)
 ```
 
-Then open http://localhost:5173. The API refuses to boot if a token-registry mint does not verify against Jupiter (fail-closed). `pnpm e2e` runs the end-to-end script against live APIs.
+The API does **not** auto-load `.env` (there is no dotenv dependency), so export the variables in your shell. Every variable in [`.env.example`](.env.example) has a demo default in `apps/api/src/config.ts` except that you should always set a real `SESSION_SECRET`:
+
+```bash
+cp .env.example .env   # reference only — edit your shell exports below, or source it explicitly
+export SESSION_SECRET="$(openssl rand -hex 32)"
+node apps/api/dist/index.js   # API on :3001 (terminal 1)
+```
+
+In a second terminal, start the web client pointed at the API (without `VITE_API_URL` the client calls the same origin, which only works behind the `SERVE_WEB=true` production serving):
+
+```bash
+VITE_API_URL=http://localhost:3001 pnpm --filter web dev   # web on :5173 (terminal 2)
+```
+
+Then open http://localhost:5173, register, create a paper wallet, deposit paper USDC, and type `Invertí 10 USD en el S&P 500` in the chat. Review the confirmation card and complete the slide-to-sign gesture: the fill is credited as paper only after a real mainnet simulation succeeds.
+
+Notes a new user should know before the first run:
+
+- The API refuses to boot if a token-registry mint does not verify against Jupiter (fail-closed). Jupiter's keyless tier is rate-limited, so a transient verification failure can abort a boot — just retry; it is not a code error.
+- Boot needs a writable `./data/` directory (the default `DATABASE_PATH=./data/app.sqlite`); it is created on first run and is git-ignored.
+- `SESSION_SECRET=<long-secret> node apps/api/dist/index.js` from the old quickstart still works, but then no other `.env.example` variable takes effect. To use the file, export its non-comment lines explicitly, e.g. `set -a; source .env; set +a` in bash/zsh.
+- `pnpm e2e` runs `scripts/e2e-live.mjs` against a locally running API on :3001 (start it first) and live Jupiter/Solana endpoints.
 
 Note that the local URLs are for development. The live preview above is the fastest way to try the product.
+
+### Run the Onda MCP locally
+
+The MCP server ships behind `MCP_ENABLED` (default off). To try it locally:
+
+1. Start the API with the flag on and the public base URL pointing at the web client (used to build `signingUrl` deep links):
+   ```bash
+   export SESSION_SECRET="$(openssl rand -hex 32)"
+   export MCP_ENABLED=true
+   export PUBLIC_BASE_URL=http://localhost:5173
+   node apps/api/dist/index.js
+   ```
+   `GET /health` should now report `"mcpEnabled":true`.
+2. In the web app, open **Settings → Agentes externos (MCP)**, create a token (scopes `read:portfolio`, `quote`, `propose`) and copy the `onda_mcp_…` secret — it is shown only once. Signing always happens in the Onda web session; no MCP tool can confirm or execute.
+3. Point any MCP client at `http://localhost:3001/mcp` with the bearer header. For Claude Code:
+   ```bash
+   claude mcp add --transport http onda http://localhost:3001/mcp \
+     --header "Authorization: Bearer <your-onda_mcp_-token>"
+   claude mcp list
+   ```
+   For Cursor, add a server entry in `~/.cursor/mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "onda": {
+         "url": "http://localhost:3001/mcp",
+         "headers": { "Authorization": "Bearer ${env:ONDA_MCP_TOKEN}" }
+       }
+     }
+   }
+   ```
+   Then ask the client to list tools: you should see 7 tools (`onda_list_assets`, `onda_get_asset_info`, `onda_get_portfolio`, `onda_get_limits`, `onda_quote_swap`, `onda_propose_trade`, `onda_get_confirmation`). Design detail and per-client onboarding live in [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 
 ## Architecture
 
@@ -95,7 +148,7 @@ The full runbook — resources, build, and teardown commands, including the vari
 
 - **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
 - **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
-- **Phase 1.2 — Onda MCP (code shipped behind flag, not enabled on Azure):** remote MCP server (Streamable HTTP at `/mcp`, 6 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; it stays off until `MCP_ENABLED=true` and a custom domain exists. See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
+- **Phase 1.2 — Onda MCP (code shipped behind flag, not enabled on Azure):** remote MCP server (Streamable HTTP at `/mcp`, 7 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; it stays off until `MCP_ENABLED=true` and a custom domain exists. Local run: [Run the Onda MCP locally](#run-the-onda-mcp-locally). See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
 - **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.
 
@@ -126,7 +179,7 @@ Honest limits: paper execution only, MCP code shipped behind flag but not yet en
 
 ## Contributing
 
-Small, reviewable PRs against `main`; every PR needs `pnpm build` and `pnpm test` green, and no PR merges without the project owner's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: small, reviewable PRs against `main`; every PR needs `pnpm build` and `pnpm test` green, carries its VERSION + CHANGELOG paper trail, and no PR merges without the project owner's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
 
 ## License
 
