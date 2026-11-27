@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0] - 2026-11-27
+
+### Added
+- **Onda MCP (fase 1.2, spec 07) detrás de `MCP_ENABLED` (default `false`; no prendido en Azure):** servidor MCP remoto Streamable HTTP stateless en `/mcp` sobre el mismo Fastify, con el SDK oficial `@modelcontextprotocol/sdk@1.32.2`. 6 tools sin tool de ejecución/confirmación: `onda_list_assets`, `onda_get_portfolio`, `onda_get_limits`, `onda_quote_swap`, `onda_propose_trade`, `onda_get_confirmation`. Signing siempre en Onda: `propose` devuelve `signingUrl` a `/confirm/<id>` (deep link que la web carga con la sesión normal) y el cliente solo hace polling.
+- **API tokens por usuario:** endpoints `GET/POST/DELETE /api/v1/settings/mcp-tokens`, scopes cerrados `read:portfolio`/`quote`/`propose` (sin `execute`), secreto mostrado una sola vez, server-side solo SHA-256 hash, vencimiento 90 días (Q-M5). Revocar o vencer expira las confirmations pendientes creadas bajo ese token; `proposedVia {channel, tokenId, clientName, clientVersion}` queda en audit/confirmation y `decidedBy` sigue siendo el `userId` que firma en la web.
+- **Settings UI en la web** (mismo sistema de diseño, sin tocar colores): panel "Agentes externos (MCP)" con lista de tokens (nombre/scopes/created/expiresAt/lastUsedAt), crear con secreto de un solo uso, revocar, frase de descubrimiento honesto de spec 07 §5.6 y endpoint desde `PUBLIC_BASE_URL`.
+- Tests con **cliente MCP real** (SDK client por HTTP contra Fastify): lifecycle de tokens, tools/list, quote persistida→propose→poll, IDOR entre usuarios, scopes, token vencido/revocado y rate limit por token (60/min, quote 10/min, propose 5/min). Env nuevas: `MCP_ENABLED`, `PUBLIC_BASE_URL`.
+
 ## [0.3.1] - 2026-11-27
 
 ### Changed

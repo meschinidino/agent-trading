@@ -81,7 +81,7 @@ export function supersedePending(db: DB, userId: string, exceptId?: string) {
   for (const r of rows) { if (r.id === exceptId) continue; db.prepare("UPDATE confirmations SET status='superseded' WHERE id=?").run(r.id); appendAudit(db, r.id, userId, "superseded", {}); }
 }
 
-export function createConfirmation(db: DB, userId: string, walletId: string, quoteId: string, rawIntent: string, symbol: string, side: "buy" | "sell") {
+export function createConfirmation(db: DB, userId: string, walletId: string, quoteId: string, rawIntent: string, symbol: string, side: "buy" | "sell", proposedVia?: { channel: string; tokenId?: string; clientName?: string; clientVersion?: string } | null) {
   const existing = db.prepare("SELECT * FROM confirmations WHERE quote_id=?").get(quoteId) as any;
   if (existing) { if (existing.user_id !== userId) throw err("QUOTE_NOT_OWNED", "Quote ajena", 404); return existing; }
   const q = db.prepare("SELECT * FROM quotes WHERE id=?").get(quoteId) as any;
@@ -93,10 +93,10 @@ export function createConfirmation(db: DB, userId: string, walletId: string, quo
   const last = db.prepare("SELECT record_hash FROM confirmations ORDER BY rowid DESC LIMIT 1").get() as any;
   const prev = last?.record_hash || "GENESIS";
   const rec = hashRecord(prev, JSON.stringify({ cId, userId, quoteId, created }));
-  db.prepare("INSERT INTO confirmations(id,user_id,wallet_id,quote_id,mode,status,raw_intent,llm_summary,input_mint,output_mint,symbol,side,amount_in_atomic,quoted_out_atomic,min_out_atomic,slippage_bps,price_impact_pct,error_code,prev_hash,record_hash,lease_expires_at,created_at,presented_at,decided_at,decided_by,executed_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-    .run(cId, userId, walletId, quoteId, "paper", "proposed", rawIntent, `${side === "buy" ? "Comprar" : "Vender"} ${symbol}`, q.input_mint, q.output_mint, symbol, side, q.amount_in_atomic, q.quoted_out_atomic, q.min_out_atomic, q.slippage_bps, q.price_impact_pct, null, prev, rec, null, created, null, null, null, null, null);
+  db.prepare("INSERT INTO confirmations(id,user_id,wallet_id,quote_id,mode,status,raw_intent,llm_summary,input_mint,output_mint,symbol,side,amount_in_atomic,quoted_out_atomic,min_out_atomic,slippage_bps,price_impact_pct,error_code,prev_hash,record_hash,lease_expires_at,created_at,presented_at,decided_at,decided_by,executed_at,expires_at,proposed_via) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run(cId, userId, walletId, quoteId, "paper", "proposed", rawIntent, `${side === "buy" ? "Comprar" : "Vender"} ${symbol}`, q.input_mint, q.output_mint, symbol, side, q.amount_in_atomic, q.quoted_out_atomic, q.min_out_atomic, q.slippage_bps, q.price_impact_pct, null, prev, rec, null, created, null, null, null, null, null, proposedVia ? JSON.stringify(proposedVia) : null);
   db.prepare("UPDATE quotes SET consumed_at=? WHERE id=?").run(created, quoteId);
-  appendAudit(db, cId, userId, "created", { quoteId, symbol, side });
+  appendAudit(db, cId, userId, "created", { quoteId, symbol, side, ...(proposedVia ? { proposedVia } : {}) });
   return db.prepare("SELECT * FROM confirmations WHERE id=?").get(cId);
 }
 

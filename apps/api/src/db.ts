@@ -19,7 +19,10 @@ CREATE TABLE IF NOT EXISTS executions(id TEXT PRIMARY KEY,order_id TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS paper_ledger(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,wallet_id TEXT NOT NULL,kind TEXT NOT NULL,symbol TEXT,mint TEXT,amount_atomic TEXT NOT NULL,amount_usd REAL,confirmation_id TEXT UNIQUE,simulation_ref TEXT,created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_per_user ON confirmations(user_id) WHERE status IN ('proposed','pending_confirmation');
 CREATE TABLE IF NOT EXISTS audit_log(id TEXT PRIMARY KEY,confirmation_id TEXT,user_id TEXT,event TEXT NOT NULL,payload TEXT,prev_hash TEXT NOT NULL,record_hash TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS mcp_tokens(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,name TEXT NOT NULL,token_hash TEXT UNIQUE NOT NULL,scopes TEXT NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,last_used_at TEXT,revoked_at TEXT);
 `);
+  const confCols = db.prepare("PRAGMA table_info(confirmations)").all() as any[];
+  if (!confCols.some((c) => c.name === "proposed_via")) db.exec("ALTER TABLE confirmations ADD COLUMN proposed_via TEXT");
   return db;
 }
 export const nowIso = () => new Date().toISOString();
