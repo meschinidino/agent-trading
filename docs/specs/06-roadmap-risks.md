@@ -19,9 +19,9 @@ Ordenar el trabajo en fases con criterio de salida, y dejar los riesgos y las de
 
 ### Fases
 
-**Fase 0 — Validación manual (sin código de producto).** Instalar `@phantom/mcp-server`, completar el device-code sign-in, obtener la agent wallet address, cotizar USDC → SPYx/AAPLx/NVDAx por Jupiter `/order` y vía `simulate` de Phantom. *Salida:* address reportada, quotes reales registradas, y Dino fondea ~3 USD USDC con su propia mano. Nadie más mueve fondos en esta fase.
+**Fase 0 — Validación manual (sin código de producto). Cumplida (DIN-4, cerrada Done), sin fondeo de Dino en mainnet.** Se instaló `@phantom/mcp-server`, se completó el device-code sign-in y se obtuvo la agent wallet address. La salida validada tiene dos planos: (a) **mainnet** — quotes reales de Jupiter v2 con `taker` = agent wallet, armado de transacción y paths de simulación, con saldo cero; (b) **devnet** — firma de Phantom MCP probada end-to-end con SOL/USDC de faucet: preview asertada con `advancedDetails.chainId` = `solana:103`, `confirmed: true` y signature `4apFAa2mRHGKWcrsZib49yZQBKyVgPpRpzHwNq9T9cMbiMmjtWgjtet9qtR9ewHpWzU9oY9nPBZdRHwk76DevRKy` finalized. Dino no mueve fondos en ninguna fase de validación.
 
-**Fase 1 — Demo single-wallet.** Backend + agente Eve + chat UI + confirmation gate según [03-agent-flows.md](03-agent-flows.md) a [05-backend-api.md](05-backend-api.md), ejecutando con Phantom `buy`. *Salida:* los criterios de aceptación de [00-overview.md](00-overview.md) cumplidos en vivo, con al menos una compra, un rechazo y una expiración demostrados.
+**Fase 1 — Demo single-wallet, modo Track A.** Backend + agente Eve + chat UI + confirmation gate según [03-agent-flows.md](03-agent-flows.md) a [05-backend-api.md](05-backend-api.md). Track A: quotes reales de Jupiter (`/order` con `taker` + armado de transacción) y simulación en mainnet, portfolio desde balances on-chain vía RPC valuados a precios reales, y **paper fill acreditado solo tras simulación aprobada**. La ejecución real (Phantom `buy`) queda detrás de un config flag apagado por defecto. *Salida:* los criterios de aceptación de [00-overview.md](00-overview.md) cumplidos en vivo, con al menos una compra simulada acreditada, un rechazo y una expiración demostrados.
 
 **Fase 2 — Multi-usuario.** Registro con Phantom Connect, una embedded wallet por usuario, spending limits (default USD 1.000/app/día de Connect como techo, gate sigue obligatorio), portfolio e historial por usuario. *Salida:* dos usuarios reales operando wallets distintas sin compartir session ni fondos; re-evaluar Jupiter como ejecutor primario (ver [02-swaps-xstocks.md](02-swaps-xstocks.md)).
 
@@ -45,13 +45,13 @@ Ordenar el trabajo en fases con criterio de salida, y dejar los riesgos y las de
 - **Q2 — TTL del gate.** 60 s estándar vs 120 s en modo demo. *Recomendación:* 120 s configurable por env; la quote se refresca sola al vencer sin perder la intención.
 - **Q3 — Estado en vivo.** Polling vs SSE tras confirmar. *Recomendación:* polling cada 2 s en la demo; SSE cuando haya canales de Eve en producción.
 - **Q4 — Dónde corre el MCP.** Mac de Dino vs host dedicado. *Recomendación:* Mac de Dino para fase 0–1 (la session ya vive ahí); host dedicado recién si la demo necesita uptime sin Dino presente.
-- **Q5 — Control de slippage en Phantom `buy`.** Confirmar en fase 0 si acepta minimum-out explícito. *Recomendación:* si es opaco, la propuesta muestra la simulación de `simulate` y Jupiter pasa a ser el ejecutor en cuanto necesitemos garantías duras.
+- **Q5 — Control de slippage en Phantom `buy`. CERRADA (evidencia DIN-4).** Respuesta probada: `buy` es **opaco en slippage** (no acepta minimum-out explícito) y además **no rutea en devnet** (HTTP 400), mientras que Jupiter cotiza, arma y simula sin fondeo. La propuesta del gate muestra por lo tanto la quote de Jupiter con su minimum-out, y se mantiene la recomendación: **Jupiter como ejecutor en cuanto necesitemos garantías duras** de minimum-out; `buy` queda relegado a ejecutor opcional con el flag de ejecución encendido.
 - **Q6 — Entrada por voz.** ¿El chat acepta dictado? *Recomendación:* fuera de la demo; el texto alcanza para probar la tesis y la voz suma errores de transcripción sobre montos, el dato más sensible.
 
 ## Criterios de aceptación
 
-- [ ] Dino responde o difiere explícitamente Q1–Q6 antes de iniciar fase 1.
-- [ ] La fase 0 produce evidencia (address + quotes) antes de cualquier línea de código de producto.
+- [ ] Dino responde o difiere explícitamente Q1–Q4 y Q6 antes de iniciar fase 1 (Q5 ya cerrada con evidencia DIN-4).
+- [x] La fase 0 produce evidencia (address + quotes mainnet + firma devnet) antes de cualquier línea de código de producto. **Cumplido — DIN-4, cerrada Done, sin fondeo en mainnet.**
 - [ ] El riesgo de jurisdicción de xStocks tiene un responsable y una verificación concreta asignada antes de mostrar la demo a terceros.
 
 ## Preguntas abiertas
