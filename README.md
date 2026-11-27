@@ -2,7 +2,7 @@
 
 Agente de IA que invierte en acciones y ETFs tokenizados (xStocks) desde una wallet cripto a través de lenguaje natural, con un confirmation gate antes de cualquier ejecución.
 
-> **Estado actual: fase de specs (fase 0 validada; todavía no hay código de producto)**
+> **Estado actual: MVP v0.1.0 (Track A paper) — código en `apps/` y `agent/`, ver [CHANGELOG.md](CHANGELOG.md)**
 
 ## Qué es
 
@@ -10,19 +10,31 @@ Un usuario escribe "Invertí 100 USD en el S&P 500" y el agente interpreta la in
 
 La tesis que prueba la demo es una sola: un LLM puede operar una wallet real de forma útil si el sistema — no el modelo — controla el dinero. Por eso el confirmation gate vive en el backend, es idempotente, tiene TTL y deja audit log; el agente propone, el backend dispone.
 
-## Estado: sin código todavía
+## Estado: MVP v0.1.0
 
-Este repositorio **todavía no contiene código ejecutable**: no hay nada para instalar, compilar ni correr, y por eso no hay instrucciones de instalación ni de uso. Hoy el repo contiene únicamente el paquete de specs en [`docs/specs/`](docs/specs/).
+Ya hay código de producto: monorepo TypeScript (Node 24, pnpm) con `apps/api` (Fastify + SQLite), `apps/web` (Vite + TS) y `agent/` (scaffold Eve 1.5.0; el chat corre por default con un parser determinístico, `AGENT_MODE=parser`, sin keys de modelo).
 
-Lo que sigue es la fase 1 (ver [Roadmap](#roadmap)). Cuando exista código, este README va a sumar las instrucciones reales para levantarlo; hasta entonces, cualquier comando de quickstart sería inventado.
+### Cómo correrlo local
+
+```bash
+pnpm install
+cp .env.example .env   # SESSION_SECRET real; el resto tiene defaults de demo
+pnpm --filter api build && pnpm test
+SESSION_SECRET=<secreto-largo> node apps/api/dist/index.js   # API en :3001, boot check del registry contra Jupiter (fail-closed)
+pnpm --filter web dev                                        # web en :5173
+```
+
+La API no arranca si un mint del registry no verifica contra Jupiter. `pnpm e2e` corre el E2E contra APIs en vivo.
+
+### Guion de demo (Track A)
+
+1. Registrate y entrá. 2. Creá tu paper wallet y cargale 100 USDC paper (faucet demo, tope 1000). 3. Escribí "Invertí 10 USD en el S&P 500". 4. La tarjeta muestra quote real de Jupiter, mínimo, slippage 50 bps y countdown único: Confirmar corre `simulateTransaction` real en mainnet y acredita el monto **simulado a quote** solo si la simulación pasa. 5. Portfolio e historial muestran la posición paper valuada a precios en vivo.
+
+### Disclaimer paper
+
+**Modo demo paper — precios reales, ejecución simulada.** Los USDC y xStocks paper son filas de un ledger local: no existen on-chain, no tienen valor y nunca se presentan como saldo de wallet. Las quotes, precios, simulaciones y balances de la agent wallet son reales y en vivo; la acreditación paper es la única capa ficticia y está rotulada `mode: "paper"` en UI y API. La ejecución real queda detrás de `EXECUTION_ENABLED=false`. Nada de esto es asesoramiento financiero.
 
 ### Qué existe hoy
-
-Ya validado en la fase 0, sin código de producto y sin fondeo en mainnet:
-
-- **Phantom MCP como agent wallet:** wallet dedicada de `@phantom/mcp-server`, con sign-in por device-code y firma end-to-end probada en devnet (preview con `chainId` = `solana:103`, `confirmed: true` y transacción finalized).
-- **Quotes reales de Jupiter en mainnet:** quotes de Jupiter Swap API v2 para SPYx, AAPLx y NVDAx con `taker` = agent wallet, con armado de transacción y simulación, con saldo cero.
-- **Specs completas** en [`docs/specs/`](docs/specs/): el diseño de punta a punta, listo para implementar en la fase 1.
 
 ## Arquitectura
 
@@ -52,13 +64,13 @@ Decisiones ya tomadas (detalle en [`docs/specs/README.md`](docs/specs/README.md)
 
 1. **Gate dentro del backend**, presentado por el frontend.
 2. **Phantom MCP para la demo, Phantom Connect para escalar.** El MCP corre con session local y una sola agent wallet; no es multi-tenant.
-3. **Phantom `buy` como ejecutor primario de la demo; Jupiter Swap API v2 como path de control/fallback** con quote propio y firma explícita. Como `buy` es opaco en slippage, la propuesta del gate muestra la quote de Jupiter con su minimum-out.
+3. **Jupiter Swap API v2 es el ejecutor — cotiza, arma, simula y, con el flag prendido, ejecuta — y Phantom `buy` es solo comparación de quote, nunca ejecutor**, porque `buy` es opaco en slippage y no acepta minimum-out explícito (specs 02).
 4. **Eve (vercel/eve) como agent framework**, estructura filesystem-first.
 
 ## Roadmap
 
 - **Fase 0 — Validación manual (sin código de producto). Cumplida:** agent wallet de Phantom MCP obtenida, quotes reales de Jupiter en mainnet con saldo cero y firma probada end-to-end en devnet.
-- **Fase 1 — Demo single-wallet, modo Track A:** backend + agente Eve + chat UI + confirmation gate; quotes y simulación reales en mainnet, portfolio desde balances on-chain, paper fill solo tras simulación aprobada y ejecución real detrás de un config flag apagado por defecto.
+- **Fase 1 — Demo modo Track A (MVP v0.1.0, entregada):** backend + agente Eve + chat UI + confirmation gate; quotes y simulación reales en mainnet, portfolio desde balances on-chain, paper fill solo tras simulación aprobada y ejecución real detrás de un config flag apagado por defecto.
 - **Fase 2 — Multi-usuario:** registro con Phantom Connect, una embedded wallet por usuario, spending limits por usuario y portfolio e historial por usuario (el gate sigue obligatorio).
 - **Fase 3 — Ramp en pesos:** fondeo en ARS con un ramp de terceros que convierte ARS → USDC directo a la wallet del usuario; el agente opera igual que hoy.
 

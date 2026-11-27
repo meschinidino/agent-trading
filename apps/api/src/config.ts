@@ -1,0 +1,17 @@
+export const config = {
+  port: Number(process.env.PORT || 3001),
+  sessionSecret: process.env.SESSION_SECRET || "dev-only-change-me-at-least-32-chars!!",
+  databasePath: process.env.DATABASE_PATH || "./data/app.sqlite",
+  rpcUrl: process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
+  rpcFallback: process.env.SOLANA_RPC_FALLBACK_URL || "https://solana-rpc.publicnode.com",
+  agentWallet: process.env.AGENT_WALLET_ADDRESS || "DbjQkyag5Fnb8tbWe2BFWFAXmYrn6qAWDqk5Uqv2pCcu",
+  simulationProofTaker: process.env.SIMULATION_PROOF_TAKER || "2AQdpHJ2JpcEgPiATUXjQxA8QmafFegfQwSLWSprPicm",
+  executionEnabled: process.env.EXECUTION_ENABLED === "true",
+  executionMode: process.env.EXECUTION_MODE || "paper",
+  agentMode: process.env.AGENT_MODE || "parser",
+  gateTtlMs: Number(process.env.GATE_TTL_MS || 60000),
+  slippageBps: Number(process.env.SLIPPAGE_BPS || 50),
+  paperFaucetCapUsd: Number(process.env.PAPER_FAUCET_CAP_USD || 1000),
+  paperPerProposalCapUsd: Number(process.env.PAPER_PER_PROPOSAL_CAP_USD || 25),
+  paperDailyCapUsd: Number(process.env.PAPER_DAILY_CAP_USD || 50),
+};

@@ -1,0 +1,14 @@
+{
+  "name": "agent-trading",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "packageManager": "pnpm@12.11.2",
+  "scripts": {
+    "dev": "pnpm --filter api dev & pnpm --filter web dev & wait",
+    "build": "pnpm --filter api build && pnpm --filter web build",
+    "test": "pnpm --filter api test",
+    "e2e": "node scripts/e2e-live.mjs"
+  }
+}
