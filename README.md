@@ -1,102 +1,132 @@
-# agent-trading
+English | [Español](README.es.md)
 
-Agente de IA que invierte en acciones y ETFs tokenizados (xStocks) desde una wallet cripto a través de lenguaje natural, con un confirmation gate antes de cualquier ejecución.
+# Onda — Your investing agent
 
-> **Estado actual: MVP v0.1.0 (Track A paper) — código en `apps/` y `agent/`, ver [CHANGELOG.md](CHANGELOG.md)**
+A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-## Qué es
+**Version 0.2.0** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
-Un usuario escribe "Invertí 100 USD en el S&P 500" y el agente interpreta la intención, resuelve el activo (S&P 500 → SPYx), cotiza el swap USDC → xStock y le muestra la propuesta: "Estás comprando 100 USD de S&P 500 (SPYx). ¿Confirmás?". Recién con **Confirmar** se firma y se envía la transacción on-chain en Solana. Rechazar o dejar vencer la propuesta no mueve un centavo.
+## Live preview
 
-La tesis que prueba la demo es una sola: un LLM puede operar una wallet real de forma útil si el sistema — no el modelo — controla el dinero. Por eso el confirmation gate vive en el backend, es idempotente, tiene TTL y deja audit log; el agente propone, el backend dispone.
+The product is **live as “Onda — Tu agente inversor”** at https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps, resource group `rg-agent-trading-preview`, roughly USD 20–30/month).
 
-## Estado: MVP v0.1.0
+What works there today: register and sign in, create a paper wallet and fund it, get live Jupiter quotes, review a swap proposal and sign paper buys with a slide-to-sign gesture, and see portfolio and transaction history. The agentic flow was proven end-to-end on the public URL: register → wallet → deposit → buy SPYx (paper) → portfolio.
 
-Ya hay código de producto: monorepo TypeScript (Node 24, pnpm) con `apps/api` (Fastify + SQLite), `apps/web` (Vite + TS) y `agent/` (scaffold Eve 1.5.0; el chat corre por default con un parser determinístico, `AGENT_MODE=parser`, sin keys de modelo).
+A static design mockup is also live at https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — that is a **design mockup only**, not the app.
 
-### Cómo correrlo local
+What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through Phantom MCP on Dino's Mac, the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`), and SSE live updates are decided but not yet implemented.
+
+## The idea
+
+A user types “Invertí 100 USD en el S&P 500” and the agent resolves the intent (S&P 500 → SPYx), quotes a USDC → xStock swap on Solana, and presents the proposal: “You're buying 100 USD of S&P 500 (SPYx). Confirm?” Nothing signs or settles until the user confirms; rejecting or letting the proposal expire moves no money.
+
+The thesis is narrow on purpose: an LLM can operate a real wallet usefully if the system — not the model — controls the money. The confirmation gate lives in the backend, is idempotent, has a single visible TTL, and writes an audit log. The agent proposes; the backend disposes.
+
+## Status
+
+Onda 0.2.0 is a live internal demo on real infrastructure, running paper execution:
+
+- **Terminal amable UI** (the approved design direction): a cold dark terminal, Jupiter swap-object confirmation with slide-to-sign, a thread-centered layout, a portfolio rail and a live prices strip. This replaced the earlier “editorial C” direction after a teardown of comparable products; C is historical, not current.
+- **Real market data, simulated fills.** Quotes, prices, `simulateTransaction` checks and the agent wallet's on-chain balances are real and live. Paper USDC and paper xStocks are local ledger rows, labeled `mode: "paper"` end-to-end and never presented as on-chain balances.
+- **Confirmation gate** with states `proposed → pending_confirmation → executing → executed/failed`, one pending confirmation per user, a single TTL of `min(60s, quote 30s)`, and an append-only audit log with a hash chain.
+- **Azure deploy** in a single container: Container Apps serves web and API on the same origin (`SERVE_WEB=true`), with SQLite persisted on an Azure Files share mounted at `/data`. See [Deploy](#deploy).
+
+## Quickstart
+
+Requires Node 24 and pnpm 12 (both pinned in `package.json`).
 
 ```bash
 pnpm install
-cp .env.example .env   # SESSION_SECRET real; el resto tiene defaults de demo
-pnpm --filter api build && pnpm test
-SESSION_SECRET=<secreto-largo> node apps/api/dist/index.js   # API en :3001, boot check del registry contra Jupiter (fail-closed)
-pnpm --filter web dev                                        # web en :5173
+cp .env.example .env   # set a real SESSION_SECRET; the rest have demo defaults
+pnpm --filter api build
+pnpm test
+SESSION_SECRET=<long-secret> node apps/api/dist/index.js   # API on :3001
+pnpm --filter web dev                                      # web on :5173
 ```
 
-La API no arranca si un mint del registry no verifica contra Jupiter. `pnpm e2e` corre el E2E contra APIs en vivo.
+Then open http://localhost:5173. The API refuses to boot if a token-registry mint does not verify against Jupiter (fail-closed). `pnpm e2e` runs the end-to-end script against live APIs.
 
-### Guion de demo (Track A)
+Note that the local URLs are for development. The live preview above is the fastest way to try the product.
 
-1. Registrate y entrá. 2. Creá tu paper wallet y cargale 100 USDC paper (faucet demo, tope 1000). 3. Escribí "Invertí 10 USD en el S&P 500". 4. La tarjeta muestra quote real de Jupiter, mínimo, slippage 50 bps y countdown único: Confirmar corre `simulateTransaction` real en mainnet y acredita el monto **simulado a quote** solo si la simulación pasa. 5. Portfolio e historial muestran la posición paper valuada a precios en vivo.
+## Architecture
 
-### Disclaimer paper
+TypeScript monorepo (Node 24, pnpm workspaces):
 
-**Modo demo paper — precios reales, ejecución simulada.** Los USDC y xStocks paper son filas de un ledger local: no existen on-chain, no tienen valor y nunca se presentan como saldo de wallet. Las quotes, precios, simulaciones y balances de la agent wallet son reales y en vivo; la acreditación paper es la única capa ficticia y está rotulada `mode: "paper"` en UI y API. La ejecución real queda detrás de `EXECUTION_ENABLED=false`. Nada de esto es asesoramiento financiero.
-
-### Qué existe hoy
-
-## Arquitectura
+| Path | What it is |
+|---|---|
+| `apps/api` | Fastify API + SQLite: auth, paper wallets/ledger, Jupiter quotes, confirmation gate, portfolio, audit log |
+| `apps/web` | Vite + TypeScript client: Terminal amable UI |
+| `agent/` | Eve 1.5.0 agent scaffold (instructions mirror + thin tools); chat runs on the deterministic parser by default (`AGENT_MODE=parser`) |
+| `deploy/` | `Dockerfile` and Azure deploy runbook |
+| `docs/specs/` | The full spec package (in Spanish; the repo's working language for product docs) |
 
 ```mermaid
 flowchart TD
-    U["Usuario"] -->|"Invertí 100 USD en el S&P 500"| UI["Chat UI"]
-    UI -->|"POST /chat/message"| BE["Backend / Agente (Eve)"]
-    BE -->|"intent parse + quote"| GATE{"Confirmation gate<br/>(en backend)"}
+    U["User"] -->|"“Invertí 100 USD en el S&P 500”"| UI["Chat UI (Terminal amable)"]
+    UI -->|"POST /chat/message"| BE["Backend + agent (Eve scaffold, parser default)"]
+    BE -->|"intent parse + Jupiter quote"| GATE{"Confirmation gate (backend)"}
     GATE -->|"pending_confirmation"| UI
-    UI -->|"¿Confirmás? Confirmar / Rechazar"| U
-    U -->|"Confirmar"| UI
-    UI -->|"POST /confirmations/:id/confirm"| BE
-    BE -->|"solo si confirmed"| WAL["Wallet layer"]
-    WAL -->|"ahora"| MCP["Phantom MCP<br/>agent wallet"]
-    WAL -.->|"después"| CONN["Phantom Connect<br/>embedded wallets por usuario"]
-    MCP --> SWAP["Swap execution"]
-    CONN -.-> SWAP
-    SWAP -->|"Phantom routing"| PH["Phantom routing (fee-free swaps)"]
-    SWAP -->|"Jupiter Swap API v2"| JUP["Jupiter Swap API v2<br/>/order · /build"]
-    PH --> SOL["Solana<br/>USDC → SPYx / AAPLx / NVDAx"]
-    JUP --> SOL
+    UI -->|"slide-to-sign / reject"| BE
+    BE -->|"only if confirmed"| EXEC["Paper fill after real simulation"]
+    EXEC -.->|"execution flag on (future)"| MCP["Phantom MCP (Dino's Mac)"]
+    MCP -.-> JUP["Jupiter Swap API v2 — /order · /build"]
+    JUP -.-> SOL["Solana — USDC → SPYx / AAPLx / NVDAx"]
 ```
 
-En una frase: chat UI → backend/agente (Eve) → confirmation gate → wallet layer (Phantom MCP ahora, Phantom Connect después) → Jupiter Swap API v2 / Phantom routing → Solana.
+Key decisions (full detail in [`docs/specs/`](docs/specs/README.md)):
 
-Decisiones ya tomadas (detalle en [`docs/specs/README.md`](docs/specs/README.md)):
+1. The confirmation gate lives in the backend; the frontend only presents it.
+2. Jupiter Swap API v2 quotes, builds and simulates — and, once the flag flips, executes. Phantom `buy` is quote-comparison only, never the executor, because it is opaque about slippage and takes no explicit minimum-out.
+3. Phantom MCP covers the single-agent demo path (local session, one agent wallet, not multi-tenant); the multi-user path is Phantom Connect (phase 2, not implemented).
+4. Paper fills credit the quote's `outAmount` only after a successful real mainnet simulation, and are labeled paper everywhere.
 
-1. **Gate dentro del backend**, presentado por el frontend.
-2. **Phantom MCP para la demo, Phantom Connect para escalar.** El MCP corre con session local y una sola agent wallet; no es multi-tenant.
-3. **Jupiter Swap API v2 es el ejecutor — cotiza, arma, simula y, con el flag prendido, ejecuta — y Phantom `buy` es solo comparación de quote, nunca ejecutor**, porque `buy` es opaco en slippage y no acepta minimum-out explícito (specs 02).
-4. **Eve (vercel/eve) como agent framework**, estructura filesystem-first.
+## Deploy
+
+Onda runs on Azure Container Apps in resource group `rg-agent-trading-preview` (eastus):
+
+- One container from [`deploy/Dockerfile`](deploy/Dockerfile): the Fastify API serves the Vite web build same-origin when `SERVE_WEB=true`.
+- SQLite persists on an Azure Files share at `DATABASE_PATH=/data/app.sqlite`.
+- Runtime flags: `EXECUTION_ENABLED=false`, `EXECUTION_MODE=paper`, `AGENT_MODE=parser`; `SESSION_SECRET` exists only as a Container Apps secret, never in the repo.
+- Estimated cost: roughly **USD 20–30/month** (Container Apps + ACR Basic + Azure Files + Log Analytics).
+
+The full runbook — resources, build, and teardown commands, including the variant that deletes only the app and preserves the static mockup's resource group — is in [`deploy/README.md`](deploy/README.md).
 
 ## Roadmap
 
-- **Fase 0 — Validación manual (sin código de producto). Cumplida:** agent wallet de Phantom MCP obtenida, quotes reales de Jupiter en mainnet con saldo cero y firma probada end-to-end en devnet.
-- **Fase 1 — Demo modo Track A (MVP v0.1.0, entregada):** backend + agente Eve + chat UI + confirmation gate; quotes y simulación reales en mainnet, portfolio desde balances on-chain, paper fill solo tras simulación aprobada y ejecución real detrás de un config flag apagado por defecto.
-- **Fase 2 — Multi-usuario:** registro con Phantom Connect, una embedded wallet por usuario, spending limits por usuario y portfolio e historial por usuario (el gate sigue obligatorio).
-- **Fase 3 — Ramp en pesos:** fondeo en ARS con un ramp de terceros que convierte ARS → USDC directo a la wallet del usuario; el agente opera igual que hoy.
+- **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
+- **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending Dino's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
+- **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
+- **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.
 
-Detalle completo, criterios de salida y preguntas abiertas en [`docs/specs/06-roadmap-risks.md`](docs/specs/06-roadmap-risks.md).
+Delivery view: [`docs/roadmap.md`](docs/roadmap.md). Risks and the decision log live in [`docs/specs/06-roadmap-risks.md`](docs/specs/06-roadmap-risks.md).
 
-## Specs
+## Decisions and open items
 
-Índice del paquete completo:
+Recorded 2026-11-27 (detail in spec 06):
 
-| Doc | Contenido |
-|---|---|
-| [`docs/specs/README.md`](docs/specs/README.md) | Visión en una página, índice, alcance y decisiones ya tomadas |
-| [`docs/specs/00-overview.md`](docs/specs/00-overview.md) | Problema, usuarios, objetivo de la demo, non-goals y supuestos |
-| [`docs/specs/01-wallet.md`](docs/specs/01-wallet.md) | Modelo de wallet: Phantom MCP (demo) vs Phantom Connect (multi-usuario), custodia |
-| [`docs/specs/02-swaps-xstocks.md`](docs/specs/02-swaps-xstocks.md) | Ejecución de swaps: Phantom `buy` vs Jupiter Swap API v2, token registry, slippage |
-| [`docs/specs/03-agent-flows.md`](docs/specs/03-agent-flows.md) | Comportamiento del agente (Eve): intent parsing, alias map, contrato de tools |
-| [`docs/specs/04-confirmation-gate.md`](docs/specs/04-confirmation-gate.md) | El gate de validación: estados, TTL, idempotency, copy UX, audit log |
-| [`docs/specs/05-backend-api.md`](docs/specs/05-backend-api.md) | Contrato HTTP, modelo de datos y auth |
-| [`docs/specs/06-roadmap-risks.md`](docs/specs/06-roadmap-risks.md) | Fases 0–3, riesgos y preguntas abiertas |
+- **Q1 — Demo audience: internal.** The demo is internal-only; no external showing yet.
+- **Q3 — Live updates: SSE.** Dino picked SSE over polling; not yet implemented (phase 1.1).
+- **Q4 — MCP host: Dino's Mac.** A dedicated host only if the demo needs it.
+- **Q6 — Voice input: no.** Out of scope for now.
+- **Execution stays off:** `EXECUTION_ENABLED=false` until Dino decides on funding.
+- **H11 — OPEN (owner: Dino):** xStocks eligibility for an operator in Argentina is still **unverified**. Until verified, the demo stays internal-only. This is the one open compliance item and it gates any third-party showing.
 
-## Riesgos y compliance
+Honest limits: paper execution only, no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
 
-- **Restricciones geográficas de xStocks (tema abierto):** xStocks no está disponible en algunas jurisdicciones y el issuer puede exigir KYC. Es un riesgo abierto, no resuelto por las specs: hay que verificar los términos del issuer y la jurisdicción del operador antes de mostrar la demo a terceros. Si un swap es rechazado por compliance, el agente debe responder con el motivo, no con un error genérico.
-- **La demo no ejecuta nada en mainnet sin fondos:** la validación de la fase 0 usó quotes y simulaciones en mainnet con saldo cero, y firma real solo en devnet con fondos de faucet. La ejecución real queda detrás de un config flag apagado por defecto en la fase 1.
-- **Nada de esto es asesoramiento financiero.** El agente ejecuta intenciones del usuario; no recomienda qué comprar. Este repositorio documenta un diseño de software, no una recomendación de inversión.
+## Docs
+
+- [`docs/specs/README.md`](docs/specs/README.md) — spec index and one-page product vision (Spanish)
+- [`docs/roadmap.md`](docs/roadmap.md) — delivery view (Spanish)
+- [`docs/specs/06-roadmap-risks.md`](docs/specs/06-roadmap-risks.md) — phases, risks, decisions (Spanish)
+- [`deploy/README.md`](deploy/README.md) — Azure deploy runbook
+- [`CHANGELOG.md`](CHANGELOG.md) — release notes (Spanish)
+
+> The bilingual scope of this repo is this root README. Product specs and docs under `docs/` stay in Spanish, the project's working language; so does the CHANGELOG.
+
+## Contributing
+
+Small, reviewable PRs against `main`; every PR needs `pnpm build` and `pnpm test` green, and no PR merges without Dino's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
 
 ## License
 
-MIT — ver [`LICENSE`](LICENSE).
+Apache License 2.0 — see [`LICENSE`](LICENSE).

@@ -4,6 +4,26 @@
 
 - Nada por ahora.
 
+## [0.2.0] - 2026-11-27
+
+### Added
+- UI Terminal amable implementada en la web real desde el mockup aprobado: terminal oscura fría, confirmación como objeto de swap de Jupiter con slide-to-sign, layout con thread central, rail de portfolio y strip de precios en vivo.
+- Branding de producto **Onda** — nombre aprobado por Dino; reemplaza el wordmark interno "Agente Inversor" en la UI y el título. El repo sigue siendo `agent-trading`.
+- Deploy público en Azure: Container Apps con web + API en el mismo origen, SQLite persistente en Azure Files, `deploy/Dockerfile` y `SERVE_WEB=true` para servir el build web same-origin. Vivo como "Onda — Tu agente inversor" en https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (resource group `rg-agent-trading-preview`, ~USD 20–30/mes).
+- Flujo agéntico probado en vivo sobre la URL pública: register → wallet paper → depósito → compra paper de SPYx con slide-to-sign → portfolio e historial.
+
+### Changed
+- La dirección de diseño web cambió: la editorial C (PR #5, pulida en PR #6) quedó reemplazada por Terminal amable tras el teardown DIN-12 y se implementó en PR #7. La editorial C queda como antecedente histórico, no como dirección vigente.
+- Documentación sincronizada con la realidad (README raíz bilingüe EN/ES, roadmap, spec 06, `deploy/README.md`): el producto está live, la audiencia de la demo es interna y las decisiones de Dino quedan registradas.
+- Licencia cambiada de MIT a Apache-2.0 (© 2026 Dino Meschini).
+
+### Notes / todavía no está
+- **Ejecución real apagada:** `EXECUTION_ENABLED=false`. Las compras son paper: quotes, precios, simulación y balances de la agent wallet son reales y en vivo; la acreditación paper es la única capa ficticia.
+- **La firma real vía Phantom MCP sigue corriendo en la Mac de Dino** (la session vive ahí); no hay firma desde la API en Azure.
+- **El modo Eve/LLM está apagado sin keys de modelo:** el chat corre con `AGENT_MODE=parser` (parser determinístico). El scaffold de Eve 1.5.0 existe pero no finge un LLM.
+- **SSE decidido pero no implementado:** Dino eligió SSE sobre polling para el estado en vivo (Q3); es el próximo paso en fase 1.1, hoy no existe en el código.
+- El mockup estático de diseño sigue vivo en https://agenttradingprev6cbfcf.z13.web.core.windows.net/ (solo mockup; no es la app).
+
 ## [0.1.0] - 2026-11-27
 
 ### Added
