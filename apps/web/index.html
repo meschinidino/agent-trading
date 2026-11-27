@@ -1,8 +1,76 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agente Inversor — Demo paper</title><style>body{font-family:system-ui;max-width:900px;margin:0 auto;padding:16px;background:#0f1115;color:#eee}input,button{padding:9px;border-radius:8px;border:1px solid #333;background:#1b1e24;color:#eee}button{background:#4f7cff;border:0;cursor:pointer}.card{border:1px solid #f5a623;background:#221d10;padding:14px;border-radius:10px;margin:10px 0}.paper{background:#3a2b00;padding:6px 10px;border-radius:6px;display:inline-block}section{border:1px solid #222;padding:14px;border-radius:10px;margin:12px 0}.muted{color:#aaa;font-size:13px}pre{white-space:pre-wrap}</style></head><body>
-<h2>Agente Inversor <span class="paper">Modo demo paper — precios reales, ejecución simulada</span></h2>
-<section id="auth"><h3>Cuenta</h3><input id="email" placeholder="email"><input id="pass" type="password" placeholder="contraseña"><button id="reg">Registrarme</button><button id="login">Entrar</button><span id="who" class="muted"></span></section>
-<section><h3>Paper wallet</h3><button id="mkWallet">Crear wallet</button> <input id="depAmt" type="number" value="100" style="width:80px"><button id="dep">Cargar USDC paper</button> <span id="bal"></span><div class="muted">La wallet real del agente (Phantom MCP, DbjQ…pCcu) es solo lectura en el MVP. Tu paper wallet es un ledger demo: sin claves, sin fondos reales.</div></section>
-<section><h3>Chat</h3><div id="chat"></div><div id="card"></div><input id="msg" style="width:70%" placeholder="Invertí 10 USD en el S&amp;P 500"><button id="send">Enviar</button><div class="muted">Frases demo: “Invertí 10 USD en el S&P 500” · “compra 5 de Apple” · “vende 5 USD de Nvidia” · “cuanto tengo”. Tope paper: 25 USD por propuesta, 50 USD/día.</div></section>
-<section><h3>Portfolio</h3><button id="refreshP">Actualizar</button><pre id="portfolio"></pre></section>
-<section><h3>Historial</h3><pre id="history"></pre></section>
-<script type="module" src="/src/main.ts"></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agente Inversor — Demo paper, precios reales</title>
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Agente <span>Inversor</span></div>
+  <span class="chip" title="Ejecución simulada sobre un ledger demo. Los precios son reales, de Jupiter.">Demo paper — precios reales</span>
+  <div class="ticker" id="ticker" aria-live="off"></div>
+  <div class="account"><span id="who"></span><button id="logout" class="btn-quiet hidden">Salir</button></div>
+</header>
+
+<main class="layout">
+  <section class="main-col" aria-label="Portfolio">
+    <h1>Tu plata, en acciones que conocés.</h1>
+    <p class="lede">Hablás en lenguaje natural, el agente cotiza en vivo y vos confirmás cada operación. Sin tu confirmación, no se mueve nada.</p>
+
+    <div id="authPanel" class="auth">
+      <h2>Entrá para empezar</h2>
+      <p class="muted">Creá tu cuenta demo. No hay fondos reales ni claves: es un ledger paper con precios de verdad.</p>
+      <div class="auth-form">
+        <input id="email" type="email" autocomplete="email" placeholder="tu@email.com" aria-label="Email">
+        <input id="pass" type="password" autocomplete="current-password" placeholder="Contraseña (mín. 8)" aria-label="Contraseña">
+        <button id="login" class="btn-primary">Entrar</button>
+        <button id="reg" class="btn-secondary">Crear cuenta</button>
+      </div>
+      <p id="authMsg" class="form-msg" role="status"></p>
+    </div>
+
+    <div id="appPanel" class="hidden">
+      <div class="total-block">
+        <div class="total num" id="totalValue">—</div>
+        <div class="muted" id="totalDetail">Valor total de tu portfolio paper</div>
+      </div>
+
+      <div id="walletBar" class="wallet-bar">
+        <span id="walletText">Todavía no tenés wallet paper.</span>
+        <span class="wallet-actions">
+          <button id="mkWallet" class="btn-secondary">Crear wallet</button>
+          <span id="depositBox" class="hidden"><input id="depAmt" type="number" value="100" min="1" step="1" aria-label="Monto a cargar en USD"> <button id="dep" class="btn-secondary">Cargar USDC paper</button></span>
+        </span>
+      </div>
+      <p class="note">Tu paper wallet es un ledger demo: sin claves, sin fondos reales. La wallet real del agente (Phantom MCP) es solo lectura en esta demo.</p>
+
+      <h2 class="section-title">Posiciones</h2>
+      <div id="positions"></div>
+
+      <h2 class="section-title">Historial</h2>
+      <div id="history" class="history"></div>
+    </div>
+  </section>
+
+  <aside class="agent-col" aria-label="Agente">
+    <h2 class="agent-title">Hablar con tu agente</h2>
+    <div id="chat" class="chat"></div>
+    <div id="card"></div>
+    <div class="quick" id="quick">
+      <button data-q="Invertí 10 USD en el S&P 500">Invertí 10 en el S&amp;P 500</button>
+      <button data-q="Comprá 5 USD de Apple">Comprá 5 de Apple</button>
+      <button data-q="¿Cuánto tengo?">¿Cuánto tengo?</button>
+    </div>
+    <div class="composer">
+      <input id="msg" placeholder="Escribí tu orden…" autocomplete="off">
+      <button id="send" class="btn-primary">Enviar</button>
+    </div>
+    <p class="note">Ejemplos: “Invertí 10 USD en el S&amp;P 500”, “vende 5 USD de Nvidia”, “cuanto tengo”. Tope paper: 25 USD por propuesta, 50 USD por día.</p>
+    <p id="chatMsg" class="form-msg" role="status"></p>
+  </aside>
+</main>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
