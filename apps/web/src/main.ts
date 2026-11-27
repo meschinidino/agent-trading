@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL ?? "";
 const $ = (id: string) => document.getElementById(id)!;
 const on = (id: string, ev: string, fn: (e: Event) => void) => $(id).addEventListener(ev, fn);
 let csrf = "";

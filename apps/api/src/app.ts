@@ -9,6 +9,8 @@ import { parseIntent, fmtAtomic } from "./parser.js";
 import { bySymbol, USDC } from "./registry.js";
 import { verifyRegistryToken, jupiterPrices } from "./jupiter.js";
 import { createConfirmation, createQuote, effectiveExpiry, err, executeConfirmation, getPaperWallet, PaperWalletProvider, portfolioFor, paperBalances } from "./services.js";
+import { readFileSync, existsSync, statSync } from "node:fs";
+import { join, extname } from "node:path";
 
 declare module "fastify" { interface FastifyRequest { user?: any; session?: any; db: DB; } }
 
@@ -159,5 +161,18 @@ export async function buildApp(dbPath = config.databasePath) {
   app.get("/api/v1/portfolio", async (req: any, reply) => { try { auth(req); return await portfolioFor(db, req.user.id); } catch (e) { return replyErr(reply, e); } });
   app.get("/api/v1/transactions", async (req: any, reply) => { try { auth(req); const rows = db.prepare("SELECT * FROM confirmations WHERE user_id=? ORDER BY created_at DESC LIMIT 50").all(req.user.id) as any[]; return { items: rows.map((c) => ({ id: c.id, type: c.side, symbol: c.symbol, amountUsd: c.side === "buy" ? Number(c.amount_in_atomic) / 1e6 : null, status: c.status, mode: c.mode, txSignature: null, createdAt: c.created_at })) }; } catch (e) { return replyErr(reply, e); } });
 
+  if (process.env.SERVE_WEB === "true") {
+    const webDir = process.env.WEB_DIST || "/app/apps/web/dist";
+    const mime: Record<string,string> = { ".html":"text/html; charset=utf-8", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".svg":"image/svg+xml", ".png":"image/png", ".ico":"image/x-icon", ".woff2":"font/woff2" };
+    app.setNotFoundHandler(async (req: any, reply: any) => {
+      if (req.url.startsWith("/api/") || req.url === "/health") return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Not found" } });
+      const safe = req.url.split("?")[0].replace(/\.\.\//g, "");
+      let fp = join(webDir, safe === "/" ? "index.html" : safe);
+      if (!existsSync(fp) || !statSync(fp).isFile()) fp = join(webDir, "index.html");
+      if (!existsSync(fp)) return reply.code(404).send("web not built");
+      reply.type(mime[extname(fp)] || "application/octet-stream");
+      return reply.send(readFileSync(fp));
+    });
+  }
   return { app, db, bootCheck };
 }
