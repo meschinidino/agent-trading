@@ -23,10 +23,16 @@ All CTAs point to the live app: https://onda.wonderfulsky-b50ff12c.eastus.azurec
 (`apps/web` served locally with the API), one set per landing language; the
 EN/ES toggle swaps the images with the copy. Never edit pixels to translate.
 
-- Start/confirm/receipt per language, desktop 1440×900 @2x. Hero uses the
-  confirmation-card element capture; steps use the full-app captures.
+- Demo set per language (DIN-24): `step1-ask` (chat with the Spanish order),
+  `step2-quote` (swap panels with the live Jupiter implied price),
+  `step3-confirm` (confirmation card), `step4-slide` (knob mid-gesture),
+  `step5-receipt` (executed receipt). The landing's guided demo steps through
+  these real captures (click / Prev-Next / Play); the hero reuses
+  `step3-confirm`. Never pixel-edit a capture; framing crops of full-page
+  renders are the only allowed transform.
 - App display language: `apps/web/src/i18n.ts` — `?lang=en` (persisted to
   `onda-app-lang`) or the header ES/EN switch. Display strings only; chat
   orders sent to the parser are always composed in es-AR, and the EN UI
   says so. Recapture by running the app + API locally and screenshotting
-  `/?lang=en` and `/?lang=es` after register → wallet → deposit → order.
+  `/?lang=en` and `/?lang=es` after register → wallet → deposit → order,
+  freezing the slide knob mid-drag for step 4 before completing the gesture.

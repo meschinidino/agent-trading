@@ -8,7 +8,7 @@
 <meta property="og:title" content="Onda — Your own personal broker">
 <meta property="og:description" content="Say what you want to buy. Review the swap. Slide to sign — or nothing moves. Live demo: paper trading, real prices.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="assets/en/confirm.png">
+<meta property="og:image" content="assets/en/step3-confirm.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0b0d'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23a8c256'/%3E%3C/svg%3E">
 <style>
@@ -51,15 +51,34 @@ h1{font-size:clamp(52px,7.2vw,96px);line-height:.98;letter-spacing:-.03em;font-w
 section{padding:52px 0}
 h2{font-size:clamp(28px,3.4vw,40px);letter-spacing:-.02em;line-height:1.12;max-width:22em}
 .sub{margin-top:12px;color:var(--muted);font-size:16.5px;max-width:44em}
-.steps{margin-top:36px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.step img{width:100%;height:150px;object-fit:cover;object-position:top;display:block;border-bottom:1px solid var(--line)}
-.step div{padding:14px 16px}
-.step h3,.card h3{font-size:16.5px;margin-bottom:6px}
-.step p,.card p{font-size:14px;color:var(--muted)}
-.n{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.08em}
+.demo{margin-top:32px;display:grid;grid-template-columns:272px 1fr;gap:20px;align-items:start}
+.demo-steps{display:flex;flex-direction:column;gap:8px}
+.dstep{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 14px;color:var(--muted);font:inherit;cursor:pointer}
+.dstep .n{flex:none;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--faint);padding-top:2px}
+.dstep .t{font-size:14.5px;line-height:1.4}
+.dstep:hover{border-color:var(--line2);color:var(--text)}
+.dstep[aria-current="step"]{border-color:var(--lime);color:var(--text)}
+.dstep[aria-current="step"] .n{color:var(--lime)}
+.demo-controls{display:flex;gap:8px;margin-top:4px}
+.dbtn{background:var(--panel);border:1px solid var(--line2);color:var(--text);border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer;min-height:38px}
+.dbtn:hover{border-color:var(--lime)}
+.stage{position:relative;border:1px solid var(--line2);border-radius:var(--r);background:var(--panel);overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.stage .chrome{display:flex;gap:6px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.stage .chrome i{width:9px;height:9px;border-radius:50%;background:#2a2f36}
+.stage .chrome span{margin-left:8px;font-size:12px;color:var(--faint)}
+.stage-view{position:relative;height:min(560px,62vw);background:#07080a}
+.stage-view figure{position:absolute;inset:0;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.stage-view figure.on{opacity:1;pointer-events:auto}
+.stage-view img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.stage-view figure.qp img{object-fit:contain}
+.stage-cap{display:flex;gap:12px;align-items:baseline;padding:14px 16px;border-top:1px solid var(--line);background:var(--bg2);min-height:52px}
+.stage-cap .n{flex:none;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--lime)}
+.stage-cap p{font-size:15px;color:var(--text)}
+.honest{margin-top:12px;font-size:12.5px;color:var(--faint)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:36px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:24px}
+.card h3{font-size:16.5px;margin-bottom:6px}
+.card p{font-size:14px;color:var(--muted)}
 .states{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;font-size:12.5px}
 .states span{border:1px solid var(--line2);border-radius:999px;padding:5px 11px;color:#cfd4da}
 .states b{color:var(--muted);font-weight:400}
@@ -79,8 +98,8 @@ footer{border-top:1px solid var(--line);padding:36px 0 48px;color:var(--muted);f
 footer .wrap{display:flex;gap:24px;flex-wrap:wrap;justify-content:space-between}
 footer a{color:#cfd4da}
 .tablewrap{overflow-x:auto}
-@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:44px}.steps,.grid2{grid-template-columns:1fr}.bar nav a.hide{display:none}.step img{height:auto;max-height:320px}.pill{display:none}.bar{gap:10px}.bar nav{gap:10px}table{min-width:560px}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:44px}.grid2{grid-template-columns:1fr}.bar nav a.hide{display:none}.pill{display:none}.bar{gap:10px}.bar nav{gap:10px}table{min-width:560px}.demo{grid-template-columns:1fr}.demo-steps{flex-direction:row;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}.dstep{flex:0 0 210px}.demo-controls{margin-top:0}.stage-view{height:118vw}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.stage-view figure{transition:none}}
 </style>
 </head>
 <body>
@@ -88,7 +107,7 @@ footer a{color:#cfd4da}
 <a class="brand" href="#"><span class="dot"></span>Onda</a>
 <span class="pill" data-en="Live demo" data-es="Demo en vivo">Live demo</span>
 <nav>
-<a class="hide" href="#how" data-en="How it works" data-es="Cómo funciona">How it works</a>
+<a class="hide" href="#demo" data-en="Demo" data-es="Demo">Demo</a>
 <a class="hide" href="#gate" data-en="The gate" data-es="La compuerta">The gate</a>
 <a class="hide" href="#byoa" data-en="Two doors" data-es="Dos puertas">Two doors</a>
 <span class="lang" role="group" aria-label="Language"><button id="len" aria-pressed="true">EN</button><button id="les" aria-pressed="false">ES</button></span>
@@ -107,8 +126,8 @@ footer a{color:#cfd4da}
 <p class="fine" data-en="Internal demo · paper trades, real prices · not financial advice" data-es="Demo interna · trades paper, precios reales · no es asesoramiento financiero">Internal demo · paper trades, real prices · not financial advice</p>
 </div>
 <div>
-<div class="frame"><div class="chrome"><i></i><i></i><i></i><span>onda — live app</span></div><img id="heroShot" src="assets/en/confirm.png" data-en-src="assets/en/confirm.png" data-es-src="assets/es/confirm.png" alt="Onda confirmation screen showing a swap proposal with slide-to-sign" width="1280" height="1240"></div>
-<p class="cap" data-en="Real app, shown in English. Orders are phrased in Spanish (es-AR) today — the agent parser is Spanish-first." data-es="App real, mostrada en español. Las órdenes se escriben en español (es-AR) hoy.">Real app, shown in English. Orders are phrased in Spanish (es-AR) today — the agent parser is Spanish-first.</p>
+<div class="frame"><div class="chrome"><i></i><i></i><i></i><span>onda — live app</span></div><img id="heroShot" src="assets/en/step3-confirm.png" data-en-src="assets/en/step3-confirm.png" data-es-src="assets/es/step3-confirm.png" data-en-alt="Onda confirmation card for a 10 USDC paper buy of SPYx, with slide-to-sign" data-es-alt="Tarjeta de confirmación de Onda para una compra paper de 10 USDC de SPYx, con deslizar para firmar" alt="Onda confirmation card for a 10 USDC paper buy of SPYx, with slide-to-sign" width="1760" height="1180"></div>
+<p class="cap" data-en="Real app, in English. Orders are phrased in Spanish (es-AR) today." data-es="App real, en español. Las órdenes se escriben en español (es-AR) hoy.">Real app, in English. Orders are phrased in Spanish (es-AR) today.</p>
 </div>
 </div>
 
@@ -116,13 +135,37 @@ footer a{color:#cfd4da}
 <span class="tk"><b>SPYx</b> S&amp;P 500 · 1:1</span><span class="tk"><b>AAPLx</b> Apple · 1:1</span><span class="tk"><b>NVDAx</b> Nvidia · 1:1</span><span class="tk"><b>USDC</b> Solana</span><span class="tk" data-en="Live prices in the app · Jupiter" data-es="Precios en vivo en la app · Jupiter">Live prices in the app · Jupiter</span>
 </div></div>
 
-<section id="how"><div class="wrap">
-<h2 data-en="How it works" data-es="Cómo funciona">How it works</h2>
-<div class="steps">
-<article class="step"><img src="assets/en/start.png" data-en-src="assets/en/start.png" data-es-src="assets/es/start.png" alt="Onda start screen with paper wallet and live watchlist" loading="lazy"><div><p class="n">01</p><h3 data-en="Ask" data-es="Pedí">Ask</h3><p data-en="“Put $100 in the S&amp;P 500.” Onda quotes it live." data-es="«Invertí $100 en el S&amp;P 500». Onda cotiza en vivo.">“Put $100 in the S&amp;P 500.” Onda quotes it live.</p></div></article>
-<article class="step"><img src="assets/en/confirm.png" data-en-src="assets/en/confirm.png" data-es-src="assets/es/confirm.png" alt="Onda swap confirmation with slide-to-sign" loading="lazy"><div><p class="n">02</p><h3 data-en="Review" data-es="Revisá">Review</h3><p data-en="Slide to sign, reject, or let it expire." data-es="Deslizá para firmar, rechazá o dejá vencer.">Slide to sign, reject, or let it expire.</p></div></article>
-<article class="step"><img src="assets/en/receipt.png" data-en-src="assets/en/receipt.png" data-es-src="assets/es/receipt.png" alt="Onda receipt and portfolio after a paper buy" loading="lazy"><div><p class="n">03</p><h3 data-en="Receipt" data-es="Comprobante">Receipt</h3><p data-en="Every outcome lands in your history." data-es="Cada resultado queda en tu historial.">Every outcome lands in your history.</p></div></article>
-</div></div></section>
+<section id="demo"><div class="wrap">
+<h2 data-en="Watch a real buy, start to finish" data-es="Mirá una compra real, de principio a fin">Watch a real buy, start to finish</h2>
+<div class="demo">
+<div>
+<div class="demo-steps" role="list" aria-label="Demo steps">
+<button class="dstep" type="button" data-step="0" aria-current="step"><span class="n">01</span><span class="t" data-en="You ask in Spanish. Onda quotes live." data-es="Pedís en español. Onda cotiza en vivo.">You ask in Spanish. Onda quotes live.</span></button>
+<button class="dstep" type="button" data-step="1"><span class="n">02</span><span class="t" data-en="Live Jupiter quote, exactly as captured." data-es="Cotización Jupiter en vivo, tal como capturada.">Live Jupiter quote, exactly as captured.</span></button>
+<button class="dstep" type="button" data-step="2"><span class="n">03</span><span class="t" data-en="Review the swap. Nothing executes yet." data-es="Revisás el swap. Todavía no se ejecuta nada.">Review the swap. Nothing executes yet.</span></button>
+<button class="dstep" type="button" data-step="3"><span class="n">04</span><span class="t" data-en="Slide to sign — the gesture is the signature." data-es="Deslizá para firmar: el gesto es la firma.">Slide to sign — the gesture is the signature.</span></button>
+<button class="dstep" type="button" data-step="4"><span class="n">05</span><span class="t" data-en="Executed receipt, credited to your paper balance." data-es="Comprobante ejecutado, acreditado en tu saldo paper.">Executed receipt, credited to your paper balance.</span></button>
+</div>
+<div class="demo-controls">
+<button class="dbtn" id="dPrev" type="button" data-en="← Prev" data-es="← Anterior">← Prev</button>
+<button class="dbtn" id="dPlay" type="button" aria-pressed="false" data-en="Play" data-es="Reproducir">Play</button>
+<button class="dbtn" id="dNext" type="button" data-en="Next →" data-es="Siguiente →">Next →</button>
+</div>
+<p class="honest" data-en="Real screenshots from one live run — not a simulation of the UI. Chat understands Spanish orders today (es-AR)." data-es="Capturas reales de una corrida en vivo — no es una simulación de la UI. El chat entiende órdenes en español hoy (es-AR).">Real screenshots from one live run — not a simulation of the UI. Chat understands Spanish orders today (es-AR).</p>
+</div>
+<div class="stage" id="stage">
+<div class="chrome"><i></i><i></i><i></i><span data-en="onda — real capture" data-es="onda — captura real">onda — real capture</span></div>
+<div class="stage-view" id="stageView">
+<figure class="on"><img src="assets/en/step1-ask.png" data-en-src="assets/en/step1-ask.png" data-es-src="assets/es/step1-ask.png" data-en-alt="Onda chat showing the Spanish order Invertí 10 USD en el S&amp;P 500 and the agent reply" data-es-alt="Chat de Onda con la orden en español Invertí 10 USD en el S&amp;P 500 y la respuesta del agente" alt="Onda chat showing the Spanish order Invertí 10 USD en el S&amp;P 500 and the agent reply"></figure>
+<figure class="qp"><img src="assets/en/step2-quote.png" data-en-src="assets/en/step2-quote.png" data-es-src="assets/es/step2-quote.png" data-en-alt="Onda swap panels showing 10 USDC to SPYx at the live Jupiter implied price, as captured" data-es-alt="Paneles del swap de Onda: 10 USDC a SPYx al precio implícito en vivo de Jupiter, tal como capturado" alt="Onda swap panels showing 10 USDC to SPYx at the live Jupiter implied price, as captured" loading="lazy"></figure>
+<figure><img src="assets/en/step3-confirm.png" data-en-src="assets/en/step3-confirm.png" data-es-src="assets/es/step3-confirm.png" data-en-alt="Onda confirmation card: guaranteed minimum and slide-to-sign, nothing executed yet" data-es-alt="Tarjeta de confirmación de Onda: mínimo garantizado y deslizar para firmar, todavía sin ejecutar" alt="Onda confirmation card: guaranteed minimum and slide-to-sign, nothing executed yet" loading="lazy"></figure>
+<figure><img src="assets/en/step4-slide.png" data-en-src="assets/en/step4-slide.png" data-es-src="assets/es/step4-slide.png" data-en-alt="Onda confirmation card with the slide-to-sign knob mid-gesture" data-es-alt="Tarjeta de confirmación de Onda con el knob de deslizar para firmar a mitad del gesto" alt="Onda confirmation card with the slide-to-sign knob mid-gesture" loading="lazy"></figure>
+<figure><img src="assets/en/step5-receipt.png" data-en-src="assets/en/step5-receipt.png" data-es-src="assets/es/step5-receipt.png" data-en-alt="Onda executed paper receipt showing the SPYx amount credited, with implied price and quote" data-es-alt="Comprobante paper ejecutado de Onda con el monto de SPYx acreditado, precio implícito y cotización" alt="Onda executed paper receipt showing the SPYx amount credited, with implied price and quote" loading="lazy"></figure>
+</div>
+<div class="stage-cap"><span class="n" id="capN">01 / 05</span><p id="capText" data-en="You ask in Spanish. Onda quotes live." data-es="Pedís en español. Onda cotiza en vivo.">You ask in Spanish. Onda quotes live.</p></div>
+</div>
+</div>
+</div></section>
 
 <section id="gate" style="background:var(--bg2);border-block:1px solid var(--line)"><div class="wrap">
 <h2 data-en="Nothing moves without your slide." data-es="Nada se mueve sin tu deslizamiento.">Nothing moves without your slide.</h2>
@@ -134,7 +177,7 @@ footer a{color:#cfd4da}
 <li data-en="A “yes” in chat is never a signature." data-es="Un «sí» en el chat nunca es una firma.">A “yes” in chat is never a signature.</li>
 <li data-en="Demo cap: $25 per proposal, $50/day, paper." data-es="Tope demo: $25 por propuesta, $50/día, paper.">Demo cap: $25 per proposal, $50/day, paper.</li>
 </ul></div>
-<div class="card"><h3 data-en="Try it" data-es="Probalo">Try it</h3>
+<div class="card"><h3 data-en="Try the gesture" data-es="Probá el gesto">Try the gesture</h3>
 <p data-en="Drag to the end. That gesture is the signature." data-es="Arrastrá hasta el final. Ese gesto es la firma.">Drag to the end. That gesture is the signature.</p>
 <div class="slider" id="slider" role="slider" aria-label="Slide to sign demo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="fill" id="fill"></div><div class="label" id="slabel" data-en="Slide to sign · demo only" data-es="Deslizá para firmar · solo demo">Slide to sign · demo only</div><div class="thumb" id="thumb">→</div></div>
 </div></div></div></section>
@@ -162,10 +205,25 @@ footer a{color:#cfd4da}
 </div></footer>
 
 <script>
-const $=s=>document.querySelector(s);
-function setLang(l){document.documentElement.lang=l;document.querySelectorAll('[data-en]').forEach(e=>{e.textContent=e.dataset[l]});document.querySelectorAll('[data-en-src]').forEach(e=>{e.src=e.dataset[l+'Src']});$('#len').setAttribute('aria-pressed',l==='en');$('#les').setAttribute('aria-pressed',l==='es');try{localStorage.setItem('onda-lang',l)}catch(e){}}
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const CAPTIONS={
+ en:["You ask in Spanish. Onda quotes live.","Live Jupiter quote, exactly as captured.","Review the swap. Nothing executes yet.","Slide to sign — the gesture is the signature.","Executed receipt, credited to your paper balance."],
+ es:["Pedís en español. Onda cotiza en vivo.","Cotización Jupiter en vivo, tal como capturada.","Revisás el swap. Todavía no se ejecuta nada.","Deslizá para firmar: el gesto es la firma.","Comprobante ejecutado, acreditado en tu saldo paper."]};
+let cur=0, playing=false, timer=null;
+const figs=$$('#stageView figure'), steps=$$('.dstep');
+function showStep(i){cur=(i+figs.length)%figs.length;figs.forEach((f,j)=>f.classList.toggle('on',j===cur));steps.forEach((b,j)=>{if(j===cur)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current')});$('#capN').textContent=String(cur+1).padStart(2,'0')+' / 05';const l=document.documentElement.lang;$('#capText').textContent=CAPTIONS[l][cur]}
+function stopPlay(){playing=false;if(timer)clearInterval(timer);timer=null;const b=$('#dPlay');b.setAttribute('aria-pressed','false');b.textContent=document.documentElement.lang==='es'?'Reproducir':'Play'}
+function startPlay(){playing=true;const b=$('#dPlay');b.setAttribute('aria-pressed','true');b.textContent=document.documentElement.lang==='es'?'Pausa':'Pause';timer=setInterval(()=>showStep(cur+1),4200)}
+steps.forEach(b=>b.addEventListener('click',()=>{stopPlay();showStep(+b.dataset.step)}));
+$('#dPrev').onclick=()=>{stopPlay();showStep(cur-1)};
+$('#dNext').onclick=()=>{stopPlay();showStep(cur+1)};
+$('#dPlay').onclick=()=>playing?stopPlay():startPlay();
+$('#stage').addEventListener('keydown',e=>{if(e.key==='ArrowRight'){stopPlay();showStep(cur+1)}if(e.key==='ArrowLeft'){stopPlay();showStep(cur-1)}});
+$('#stage').addEventListener('pointerenter',()=>{if(playing)stopPlay()});
+function setLang(l){document.documentElement.lang=l;document.querySelectorAll('[data-en]').forEach(e=>{e.textContent=e.dataset[l]});document.querySelectorAll('[data-en-src]').forEach(e=>{e.src=e.dataset[l+'Src']});document.querySelectorAll('[data-en-alt]').forEach(e=>{e.alt=e.dataset[l+'Alt']});$('#len').setAttribute('aria-pressed',l==='en');$('#les').setAttribute('aria-pressed',l==='es');try{localStorage.setItem('onda-lang',l)}catch(e){} showStep(cur); if(playing){$('#dPlay').textContent=l==='es'?'Pausa':'Pause'} }
 $('#len').onclick=()=>setLang('en');$('#les').onclick=()=>setLang('es');
 try{if(localStorage.getItem('onda-lang')==='es')setLang('es')}catch(e){}
+if(!matchMedia('(prefers-reduced-motion: reduce)').matches){ /* autoplay stays off until the visitor presses Play */ }
 const sl=$('#slider'),th=$('#thumb'),fl=$('#fill'),lb=$('#slabel');let drag=false,x0=0;
 function setP(p){p=Math.max(0,Math.min(100,p));const w=sl.clientWidth-56;th.style.left=(4+w*p/100)+'px';fl.style.width=(56+w*p/100)+'px';sl.setAttribute('aria-valuenow',Math.round(p));if(p>=98){sl.classList.add('done');lb.textContent=document.documentElement.lang==='es'?'Firmado · paper — nada real se movió':'Signed · paper — nothing real moved'}else if(!drag){sl.classList.remove('done')}}
 th.addEventListener('pointerdown',e=>{drag=true;x0=e.clientX-th.offsetLeft;th.setPointerCapture(e.pointerId)});
