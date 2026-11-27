@@ -30,7 +30,7 @@ export async function buildApp(dbPath = config.databasePath) {
       if (!v.verified) throw new Error(`Registry boot check FAILED (fail closed): ${t.symbol} ${t.mint} no verificado en Jupiter`);
     }
   }
-  app.get("/health", async () => ({ ok: true, version: "0.1.0", executionEnabled: config.executionEnabled, agentMode: config.agentMode }));
+  app.get("/health", async () => ({ ok: true, version: "0.2.0", executionEnabled: config.executionEnabled, agentMode: config.agentMode }));
 
   function auth(req: any) {
     const sid = req.cookies?.session;
