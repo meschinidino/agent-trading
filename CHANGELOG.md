@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.2] - 2026-11-27
+
+### Changed
+- Paleta de acento del sistema completo (landing `site/` + app `apps/web`) a la variante **V1 «Lima domado»** de AGEN-24 (elección de Dino, refs DIN-21): acento `#c6f24e` → `#a8c256` (chartreuse-oliva), tinta sobre acento `#101604` → `#141a08`, fondo sin cambio `#0a0b0d`. El acento queda reservado a acciones: CTA primario, knob/track del slide-to-sign, check de ejecutado, dot del logo y focus ring. En la landing se reduce la dosis: numerales de pasos `01/02/03`, flechas de estado y label de slider firmado pasan a neutro (`--muted`/`--text`). Verde/rojo de variación quedan sin cambio (`#3fce8f`/`#f27676`) y solo en texto numérico — esa separación por rol (acento = superficies de acción, variación = números) es la mitigación de AGEN-24 §checks para que el oliva no se confunda con el verde de suba. Contraste verificado: tinta-sobre-acento 8.9:1 (AAA), acento-sobre-fondo 9.9:1. Screenshots de `site/assets/` (start/confirm/receipt) re-capturados desde la app actualizada; sin cambios de layout, copy ni comportamiento.
+
 ## [0.3.1] - 2026-11-27
 
 ### Changed
