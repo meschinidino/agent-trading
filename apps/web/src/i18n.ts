@@ -88,6 +88,19 @@ const ES = {
   connError: "No pude conectar con la API (¿está corriendo en :3001?).",
   stateFallback: (s: string) => `La operación quedó en estado ${s}. No se acreditó ningún activo.`,
   langSwitch: "ES",
+  // asset detail (DIN-26)
+  assetDetail: "Ficha del activo", assetInfo: "Info", backToRail: "Volver",
+  fIssuer: "Emisor", fUnderlying: "Subyacente", fExchange: "Bolsa", fSector: "Sector",
+  fIpo: "IPO", fInception: "Inception del ETF", fExpense: "Expense ratio", fType: "Tipo",
+  fTypeEtf: "ETF", fTypeStock: "Acción",
+  fPrice: "Precio en vivo", fChange24h: "Cambio 24 h", fVolume24h: "Volumen 24 h (token)",
+  fUnderlyingMcap: "Market cap del subyacente", fHolders: "Holders del token",
+  fMint: "Mint", fStandard: "Estándar", fNetwork: "Red",
+  backingNote: "Onda opera en paper: precios reales, sin ejecución on-chain.",
+  sourceAsOf: (name: string, date: string) => `Fuente: ${name} · al ${date}`,
+  liveSource: (date: string) => `En vivo de Jupiter · ${date}`,
+  investCta: (sym: string) => `Invertir US$ 10 en ${sym}`,
+  viewAsset: (sym: string) => `Ver ficha de ${sym}`,
 } as const;
 export type Dict = typeof ES;
 const EN: Dict = {
@@ -146,6 +159,18 @@ const EN: Dict = {
   connError: "Could not reach the API (is it running on :3001?).",
   stateFallback: (s: string) => `The operation ended in state ${s}. No asset was credited.`,
   langSwitch: "EN",
+  assetDetail: "Asset details", assetInfo: "Info", backToRail: "Back",
+  fIssuer: "Issuer", fUnderlying: "Underlying", fExchange: "Exchange", fSector: "Sector",
+  fIpo: "IPO", fInception: "ETF inception", fExpense: "Expense ratio", fType: "Type",
+  fTypeEtf: "ETF", fTypeStock: "Stock",
+  fPrice: "Live price", fChange24h: "24h change", fVolume24h: "24h volume (token)",
+  fUnderlyingMcap: "Underlying market cap", fHolders: "Token holders",
+  fMint: "Mint", fStandard: "Standard", fNetwork: "Network",
+  backingNote: "Onda runs in paper mode: real prices, no on-chain execution.",
+  sourceAsOf: (name: string, date: string) => `Source: ${name} · as of ${date}`,
+  liveSource: (date: string) => `Live from Jupiter · ${date}`,
+  investCta: (sym: string) => `Invest US$10 in ${sym}`,
+  viewAsset: (sym: string) => `View ${sym} details`,
 };
 export const S: Dict = IS_EN ? EN : ES;
 // Server (apps/api) replies stay es-AR today — translating them client-side
