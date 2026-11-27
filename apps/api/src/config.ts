@@ -18,5 +18,5 @@ export const config = {
   publicBaseUrl: (process.env.PUBLIC_BASE_URL || "http://localhost:5173").replace(/\/$/, ""),
   mcpContractVersion: "1.0.0",
   mcpTokenTtlDays: 90,
-  serverVersion: "0.4.1",
+  serverVersion: "0.5.0",
 };

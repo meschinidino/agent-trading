@@ -78,11 +78,11 @@ describe("Onda MCP fase 1.2 — cliente MCP real contra Fastify", () => {
     expect(new Date(list[0].expiresAt).getTime() - Date.now()).toBeGreaterThan(89 * 86400000);
   });
 
-  it("initialize + tools/list: 6 tools, sin tool de ejecución/confirmación", async () => {
+  it("initialize + tools/list: 7 tools, sin tool de ejecución/confirmación", async () => {
     const client = await mcpClient(aliceToken);
     const tools = await client.listTools();
     const names = tools.tools.map((t: any) => t.name).sort();
-    expect(names).toEqual(["onda_get_confirmation", "onda_get_limits", "onda_get_portfolio", "onda_list_assets", "onda_propose_trade", "onda_quote_swap"]);
+    expect(names).toEqual(["onda_get_asset_info", "onda_get_confirmation", "onda_get_limits", "onda_get_portfolio", "onda_list_assets", "onda_propose_trade", "onda_quote_swap"]);
     expect(names.some((n: string) => /execute|onda_confirm_trade|onda_reject|onda_sign/.test(n))).toBe(false);
     const propose: any = tools.tools.find((t: any) => t.name === "onda_propose_trade");
     expect(propose.annotations).toMatchObject({ destructiveHint: false, readOnlyHint: false });
@@ -94,6 +94,24 @@ describe("Onda MCP fase 1.2 — cliente MCP real contra Fastify", () => {
     const portfolio: any = payload(await client.callTool({ name: "onda_get_portfolio", arguments: {} }));
     expect(portfolio.mode).toBe("paper");
     expect(portfolio.usdc.amount).toBe(100);
+  });
+
+  it("onda_get_asset_info: ficha mergeada con fuente/asOf, scope read, sin inventos", async () => {
+    const client = await mcpClient(aliceToken);
+    const info: any = payload(await client.callTool({ name: "onda_get_asset_info", arguments: { symbol: "AAPLx" } }));
+    expect(info.mode).toBe("paper");
+    expect(info.symbol).toBe("AAPLx");
+    expect(info.curated.underlyingTicker).toBe("AAPL");
+    expect(info.curated.inceptionDate).toBe("1980-12-12");
+    expect(info.curated.inceptionLabel).toBe("ipo");
+    expect(info.curated.sourceUrl).toMatch(/^https:/);
+    expect(info.curated.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(info.live.source).toBe("jupiter");
+    // campos vivos: número real de Jupiter o null — nunca un placeholder
+    expect(info.live.priceUsd === null || typeof info.live.priceUsd === "number").toBe(true);
+    expect(info).not.toHaveProperty("dividendYieldPct");
+    const bad: any = await client.callTool({ name: "onda_get_asset_info", arguments: { symbol: "TSLAx" } });
+    expect(bad.isError).toBe(true);
   });
 
   it("quote→propose→poll en paper (quote persistida local; Jupiter live va por e2e-live)", async () => {
