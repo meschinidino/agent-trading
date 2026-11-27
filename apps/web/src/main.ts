@@ -1,4 +1,11 @@
+import { S, LANG, IS_EN, LOCALE, setLang, orderText, localizeServerReply, localizeServerMessage } from "./i18n";
 const API = import.meta.env.VITE_API_URL ?? "";
+document.documentElement.lang = IS_EN ? "en" : "es";
+if (IS_EN) document.title = "Onda — Your investing agent";
+document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => { const k = el.dataset.i18n as keyof typeof S; if (typeof S[k] === "string") el.textContent = S[k] as string; });
+document.querySelectorAll<HTMLElement>("[data-i18n-ph]").forEach((el) => { const k = el.dataset.i18nPh as keyof typeof S; if (typeof S[k] === "string") (el as HTMLInputElement).placeholder = S[k] as string; });
+document.querySelectorAll<HTMLElement>("[data-i18n-aria]").forEach((el) => { const k = el.dataset.i18nAria as keyof typeof S; if (typeof S[k] === "string") el.setAttribute("aria-label", S[k] as string); });
+{ const lb = document.getElementById("langBtn"); if (lb) { lb.textContent = IS_EN ? "ES" : "EN"; lb.addEventListener("click", () => setLang(IS_EN ? "es" : "en")); } }
 const $ = (id: string) => document.getElementById(id)!;
 const on = (id: string, ev: string, fn: (e: Event) => void) => $(id).addEventListener(ev, fn);
 let csrf = "";
@@ -17,8 +24,10 @@ const MINTS: Record<string, string> = {
   NVDAx: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
 };
 
-const fmtUsd = (n: number) => n.toLocaleString("es-AR", { style: "currency", currency: "USD" });
-const fmtNum = (n: number, d = 2) => n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtUsd = (n: number) => n.toLocaleString(LOCALE, { style: "currency", currency: "USD" });
+const fmtNum = (n: number, d = 2) => n.toLocaleString(LOCALE, { minimumFractionDigits: d, maximumFractionDigits: d });
+// Values from the API are es-AR-formatted strings; the active locale only
+// changes how we re-render them (fmtNum), never how we parse the wire format.
 const parseAmt = (v: any) => {
   const n = Number(String(v ?? "").replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) ? n : NaN;
@@ -26,12 +35,14 @@ const parseAmt = (v: any) => {
 const fmtAmt = (v: any) => {
   const s = String(v ?? "");
   const n = parseAmt(s);
-  return Number.isFinite(n) && s !== "" ? fmtNum(n, 6).replace(/0+$/, "").replace(/,$/, "") : s;
+  if (!(Number.isFinite(n) && s !== "")) return s;
+  // server sends es-AR-formatted amounts; re-render in active locale
+  return fmtNum(n, 6).replace(/0+$/, "").replace(/[.,]$/, "");
 };
 const splitUsd = (n: number) => {
-  const s = fmtUsd(n).replace(/^US\$\s?/, "");
+  const s = fmtUsd(n).replace(/^(US\$|\$)\s?/, "");
   const parts = s.split(",");
-  return { int: parts[0], dec: parts.length > 1 ? "," + parts[1] : ",00" };
+  const sep = IS_EN ? "." : ","; return { int: parts[0], dec: parts.length > 1 ? sep + parts[1] : sep + "00" };
 };
 
 function setMsg(el: HTMLElement, text: string, ok = false) {
@@ -71,7 +82,7 @@ function addMsg(kind: "me" | "bot" | "err", text: string) {
 function addTyping() {
   const d = document.createElement("div");
   d.className = "msg bot typing";
-  d.innerHTML = "<p><i></i><i></i><i></i>El agente está cotizando…</p>";
+  d.innerHTML = `<p><i></i><i></i><i></i>${S.typing}</p>`;
   $("chat").appendChild(d);
   d.scrollIntoView({ block: "nearest", behavior: "smooth" });
   return d;
@@ -84,7 +95,7 @@ function addPrompts(items: Array<{ label: string; ask?: string; amtSym?: [number
     b.type = "button";
     b.textContent = it.label;
     b.addEventListener("click", () => {
-      if (it.amtSym) sendChat(`Invertí ${it.amtSym[0]} USD en ${NAMES[it.amtSym[1]] || it.amtSym[1]}`);
+      if (it.amtSym) sendChat(orderText(it.amtSym[0], NAMES[it.amtSym[1]] || it.amtSym[1]));
       else if (it.ask) sendChat(it.ask);
     });
     wrap.appendChild(b);
@@ -103,7 +114,7 @@ function renderTicker(prices: Record<string, number> | null) {
       const prev = prevPrices[s];
       const flash = prev != null && p !== prev ? (p > prev ? "flash-up" : "flash-down") : "";
       prevPrices[s] = p;
-      return `<span class="tk ${flash}" title="${NAMES[s]} · precio de Jupiter en vivo"><span class="sym">${s}</span><span class="pr num">$${fmtNum(p)}</span></span>`;
+      return `<span class="tk ${flash}" title="${NAMES[s]} · ${S.livePriceJupiter}"><span class="sym">${s}</span><span class="pr num">$${fmtNum(p)}</span></span>`;
     })
     .join("");
 }
@@ -131,38 +142,38 @@ function renderPortfolio(p: any) {
     const sp = splitUsd(total);
     $("totalValue").innerHTML = `US$ ${esc(sp.int)}<span style="font-size:.52em;color:#79818b;font-weight:500">${esc(sp.dec)}</span>`;
     $("totalDetail").innerHTML = positions.length
-      ? `<span class="mut">${fmtUsd(p.paperUsdc)} en USDC · ${positions.length} ${positions.length === 1 ? "posición valuada" : "posiciones valuadas"} en vivo</span>`
-      : `<span class="mut">Todo en USDC, listo para tu primera compra</span>`;
+      ? `<span class="mut">${esc(S.totalDetailPos(fmtUsd(p.paperUsdc), positions.length))}</span>`
+      : `<span class="mut">${S.totalDetailAllUsdc}</span>`;
     renderSpark(total);
   } else {
     $("totalValue").textContent = "—";
-    $("totalDetail").innerHTML = `<span class="mut">Entrá para ver tu portfolio paper</span>`;
+    $("totalDetail").innerHTML = `<span class="mut">${S.totalDetailEmpty}</span>`;
   }
 
   const avail = $("availValue");
   avail.textContent = p ? fmtUsd(p.paperUsdc) : "—";
   const hasWallet = !!p?.paperWalletId;
-  $("walletText").textContent = hasWallet ? "USDC disponible" : "Todavía no tenés wallet paper";
+  $("walletText").textContent = hasWallet ? S.usdcAvailable : S.noWalletYet;
   $("walletDetail").textContent = !p
-    ? "Tu wallet paper es un ledger demo, sin claves ni fondos reales. Los precios vienen de Jupiter en vivo."
+    ? S.walletNoteAnon
     : hasWallet
-      ? "Ledger demo, sin claves ni fondos reales. Cargale USDC paper para operar."
-      : "Creala para cargar USDC paper y pedir tu primera cotización.";
+      ? S.walletNoteHas
+      : S.walletNoteCreate;
   $("mkWallet").classList.toggle("hidden", !p || hasWallet);
   $("depositBox").classList.toggle("hidden", !hasWallet);
 
   const box = $("positions");
   if (!p) {
-    box.innerHTML = `<div class="empty-pos"><div class="big">Entrá para ver tus posiciones</div>Cuando tengas wallet y posiciones, aparecen acá valuadas en vivo.</div>`;
+    box.innerHTML = `<div class="empty-pos"><div class="big">${S.emptyPosAnonTitle}</div>${S.emptyPosAnon}</div>`;
   } else if (!positions.length) {
-    box.innerHTML = `<div class="empty-pos"><div class="big">Todavía no tenés posiciones</div>Cuando compres, cada activo aparece acá: cantidad, valor y precio en vivo. Pedile al agente “Invertí 10 USD en el S&amp;P 500”.</div>`;
+    box.innerHTML = `<div class="empty-pos"><div class="big">${S.emptyPosTitle}</div>${esc(S.emptyPos)}</div>`;
   } else {
     box.innerHTML = positions.map((x: any) => `
       <div class="posrow">${mark(x.symbol, "lg")}
         <span class="p-main"><span class="p-name">${x.symbol}</span><br><span class="p-qty num">${fmtNum(x.amount, 6)} ${x.symbol}</span></span>
-        <span class="p-val"><span class="p-v num">${x.usdValue != null ? fmtUsd(x.usdValue) : "—"}</span><br><span class="p-c mut num">${x.priceUsd ? "US$ " + fmtNum(x.priceUsd) : "sin precio"}</span></span>
+        <span class="p-val"><span class="p-v num">${x.usdValue != null ? fmtUsd(x.usdValue) : "—"}</span><br><span class="p-c mut num">${x.priceUsd ? "US$ " + fmtNum(x.priceUsd) : S.noPrice}</span></span>
       </div>
-      <div class="specrow">${x.symbol} · 1:1 · subyacente ${UNDERLYING[x.symbol] || x.symbol} · 24/7 · desde US$ 1</div>`).join("");
+      <div class="specrow">${x.symbol} · 1:1 · ${S.underlying} ${UNDERLYING[x.symbol] || x.symbol} · 24/7 · ${S.fromUsd}</div>`).join("");
   }
 
   const prices = p?.prices || {};
@@ -170,30 +181,30 @@ function renderPortfolio(p: any) {
     const held = positions.find((x: any) => x.symbol === s);
     const price = prices[MINTS[s]];
     return `<button type="button" class="posrow" data-watch="${s}">${mark(s, "lg")}
-      <span class="p-main"><span class="p-name">${s}</span><br><span class="p-qty">${NAMES[s]} · 1:1${held ? " · tenés " + fmtNum(held.amount, 6) : ""}</span></span>
-      <span class="p-val"><span class="p-v num">${price ? fmtNum(price) : "···"}</span><br><span class="p-c mut">precio en vivo</span></span>
+      <span class="p-main"><span class="p-name">${s}</span><br><span class="p-qty">${NAMES[s]} · 1:1${held ? " · " + S.held + " " + fmtNum(held.amount, 6) : ""}</span></span>
+      <span class="p-val"><span class="p-v num">${price ? fmtNum(price) : "···"}</span><br><span class="p-c mut">${S.livePrice}</span></span>
     </button>`;
   }).join("");
   document.querySelectorAll("[data-watch]").forEach((b) => b.addEventListener("click", () => {
     const s = b.getAttribute("data-watch")!;
-    sendChat(`Invertí 10 USD en ${NAMES[s]}`);
+    sendChat(orderText(10, NAMES[s]));
   }));
 }
 
 function renderHistory(items: any[]) {
   const label: Record<string, [string, string]> = {
-    executed: ["ejecutada", "st-executed"], confirmed: ["ejecutada", "st-executed"],
-    rejected: ["rechazada", "st-rejected"],
-    expired: ["vencida", "st-expired"], superseded: ["reemplazada", "st-expired"],
-    pending_confirmation: ["por firmar", "st-pending"], proposed: ["propuesta", "st-pending"],
+    executed: [S.stExecuted, "st-executed"], confirmed: [S.stExecuted, "st-executed"],
+    rejected: [S.stRejected, "st-rejected"],
+    expired: [S.stExpired, "st-expired"], superseded: [S.stSuperseded, "st-expired"],
+    pending_confirmation: [S.stPending, "st-pending"], proposed: [S.stProposed, "st-pending"],
   };
   $("history").innerHTML = items.length
     ? items.map((x) => {
         const [txt, cls] = label[x.status] || [x.status, "st-expired"];
-        const when = new Date(x.createdAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-        return `<div class="lrow"><span class="l-act">${x.type === "sell" ? "Venta" : "Compra"} de ${NAMES[x.symbol] || x.symbol}</span>${x.amountUsd != null ? `<span class="l-amt num">${fmtUsd(x.amountUsd)}</span>` : ""}<span class="l-st ${cls}">${txt}</span><span class="l-meta num">${when}</span></div>`;
+        const when = new Date(x.createdAt).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
+        return `<div class="lrow"><span class="l-act">${x.type === "sell" ? S.histSell : S.histBuy} ${S.histOf} ${NAMES[x.symbol] || x.symbol}</span>${x.amountUsd != null ? `<span class="l-amt num">${fmtUsd(x.amountUsd)}</span>` : ""}<span class="l-st ${cls}">${txt}</span><span class="l-meta num">${when}</span></div>`;
       }).join("")
-    : `<div class="empty-hist">Sin movimientos todavía. Cada propuesta del agente — firmada, rechazada o vencida — queda registrada acá.</div>`;
+    : `<div class="empty-hist">${S.emptyHist}</div>`;
 }
 
 async function refresh() {
@@ -214,8 +225,9 @@ function amountHtml(value: string, sym: string) {
   const n = parseAmt(value);
   if (!Number.isFinite(n)) return `<span class="big">${esc(value)}</span><span class="unit">${sym}</span>`;
   const s = fmtAmt(value);
-  const [int, dec] = s.split(",");
-  return `<span class="big">${esc(int)}</span>${dec ? `<span class="dec">,${esc(dec)}</span>` : ""}<span class="unit">${sym}</span>`;
+  const sep = IS_EN ? "." : ",";
+  const [int, dec] = s.split(sep);
+  return `<span class="big">${esc(int)}</span>${dec ? `<span class="dec">${sep}${esc(dec)}</span>` : ""}<span class="unit">${sym}</span>`;
 }
 
 function showCard(c: any, originalText: string) {
@@ -226,21 +238,21 @@ function showCard(c: any, originalText: string) {
   const price = usd / Math.max(parseAmt(c.quotedOut), 1e-12);
   const quoteId = String(c.id).slice(0, 8);
   const inPanel = isSell
-    ? { side: "Vendés", amt: amountHtml(c.quotedOut, c.symbol), sym: c.symbol, sub: `1 ${c.symbol} = US$ ${fmtNum(price)} · precio en vivo de Jupiter` }
-    : { side: "Invertís", amt: amountHtml(String(usd), "USDC"), sym: "USDC", sub: portfolio ? `Saldo después: ${fmtUsd(Math.max(0, (portfolio.paperUsdc || 0) - usd))}` : "USDC paper" };
+    ? { side: S.youSell, amt: amountHtml(c.quotedOut, c.symbol), sym: c.symbol, sub: S.perUnitLive(c.symbol, fmtNum(price)) }
+    : { side: S.youInvest, amt: amountHtml(String(usd), "USDC"), sym: "USDC", sub: portfolio ? S.balanceAfter(fmtUsd(Math.max(0, (portfolio.paperUsdc || 0) - usd))) : S.paperUsdc };
   const outPanel = isSell
-    ? { side: "Recibís", amt: amountHtml(String(usd), "USDC"), sym: "USDC", sub: "USDC paper, acreditado al firmar" }
-    : { side: "Recibís", amt: amountHtml(c.quotedOut, c.symbol), sym: c.symbol, sub: `1 ${c.symbol} = US$ ${fmtNum(price)} · precio en vivo de Jupiter` };
+    ? { side: S.youReceive, amt: amountHtml(String(usd), "USDC"), sym: "USDC", sub: S.creditedOnSign }
+    : { side: S.youReceive, amt: amountHtml(c.quotedOut, c.symbol), sym: c.symbol, sub: S.perUnitLive(c.symbol, fmtNum(price)) };
   const minSym = isSell ? "USDC" : c.symbol;
 
   const wrap = document.createElement("div");
   wrap.innerHTML = `
-  <div class="swap" id="confirmCard" role="group" aria-label="Confirmación de ${isSell ? "venta" : "compra"}">
+  <div class="swap" id="confirmCard" role="group" aria-label="${isSell ? S.confirmAriaSell : S.confirmAriaBuy}">
     <div class="countprogress" id="countProg"><i id="countBar" style="width:100%"></i></div>
     <div class="swap-head">
-      <span class="ttl">Confirmá tu ${isSell ? "venta" : "compra"}</span>
+      <span class="ttl">${isSell ? S.confirmSell : S.confirmBuy}</span>
       <span class="sp"></span>
-      <span class="count" id="countWrap"><span id="countLabel">Vence en</span><span class="secs num" id="countText">…</span></span>
+      <span class="count" id="countWrap"><span id="countLabel">${S.expiresIn}</span><span class="secs num" id="countText">…</span></span>
     </div>
     <div class="panels">
       <div class="panel"><div class="p-left"><div class="side">${inPanel.side}</div><div class="amount num">${inPanel.amt}</div><div class="sub">${inPanel.sub}</div></div><span class="token">${mark(inPanel.sym)}${inPanel.sym}</span></div>
@@ -249,34 +261,34 @@ function showCard(c: any, originalText: string) {
     </div>
     <div class="guarantee">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.2 8.2-7 10-3.8-1.8-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
-      <span>Mínimo garantizado: <span class="gamt num">${esc(fmtAmt(c.minOut))} ${minSym}</span> — si no se cumple, no se ejecuta.</span>
+      <span>${esc(S.guaranteedMin(fmtAmt(c.minOut), minSym))}</span>
     </div>
-    <button type="button" class="details-toggle" id="detToggle" aria-expanded="false">Detalle técnico
+    <button type="button" class="details-toggle" id="detToggle" aria-expanded="false">${S.techDetails}
       <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     <div class="details" id="detBody">
-      <div class="drow"><span class="k">Slippage máximo</span><span class="v num">${c.slippageBps} bps (${fmtNum(Number(c.slippageBps) / 100)}%)</span></div>
-      <div class="drow"><span class="k">Impacto de precio</span><span class="v num">${fmtNum(Math.abs(Number(c.priceImpactPct)))}%</span></div>
-      <div class="drow"><span class="k">Ruta</span><span class="v">${isSell ? `${c.symbol} → USDC` : `USDC → ${c.symbol}`} · Jupiter</span></div>
-      <div class="drow"><span class="k">Precio implícito de la cotización</span><span class="v num">US$ ${fmtNum(price)} por ${c.symbol}</span></div>
-      <div class="drow"><span class="k">Cotización</span><span class="v num">#${esc(quoteId)}</span></div>
-      <div class="drow"><span class="k">Modalidad</span><span class="v">Paper · sin plata real</span></div>
+      <div class="drow"><span class="k">${S.maxSlippage}</span><span class="v num">${c.slippageBps} bps (${fmtNum(Number(c.slippageBps) / 100)}%)</span></div>
+      <div class="drow"><span class="k">${S.priceImpact}</span><span class="v num">${fmtNum(Math.abs(Number(c.priceImpactPct)))}%</span></div>
+      <div class="drow"><span class="k">${S.route}</span><span class="v">${isSell ? `${c.symbol} → USDC` : `USDC → ${c.symbol}`} · Jupiter</span></div>
+      <div class="drow"><span class="k">${S.impliedPrice}</span><span class="v num">US$ ${fmtNum(price)} / ${c.symbol}</span></div>
+      <div class="drow"><span class="k">${S.quote}</span><span class="v num">#${esc(quoteId)}</span></div>
+      <div class="drow"><span class="k">${S.mode}</span><span class="v">${S.modePaper}</span></div>
     </div>
     <div id="signZone">
       <div class="slide" id="slide">
         <div class="fill" id="slideFill"></div>
-        <div class="lbl" id="slideLbl">Deslizá para firmar</div>
-        <div class="thumb" id="slideThumb" role="slider" aria-label="Deslizá para firmar la ${isSell ? "venta" : "compra"}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+        <div class="lbl" id="slideLbl">${S.slideToSign}</div>
+        <div class="thumb" id="slideThumb" role="slider" aria-label="${isSell ? S.slideAriaSell : S.slideAriaBuy}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m0 0l-6-6m6 6l-6 6"/></svg>
         </div>
       </div>
-      <div class="holdrow"><button type="button" class="hold" id="holdBtn"><span class="hfill" id="holdFill"></span>o mantené presionado para firmar</button></div>
-      <div class="sign-alt"><button type="button" id="signBtn">Firmar con botón (alternativa accesible)</button></div>
+      <div class="holdrow"><button type="button" class="hold" id="holdBtn"><span class="hfill" id="holdFill"></span>${S.holdToSign}</button></div>
+      <div class="sign-alt"><button type="button" id="signBtn">${S.signButton}</button></div>
     </div>
     <div class="swap-actions">
-      <button type="button" class="linklike danger" id="rejectBtn">Rechazar</button>
+      <button type="button" class="linklike danger" id="rejectBtn">${S.reject}</button>
       <span class="sp"></span>
-      <button type="button" class="linklike" id="editBtn">Editar en el chat</button>
+      <button type="button" class="linklike" id="editBtn">${S.editInChat}</button>
     </div>
   </div>`;
   const card = wrap.firstElementChild as HTMLElement;
@@ -291,20 +303,20 @@ function showCard(c: any, originalText: string) {
     signed = true;
     clearInterval(countdown);
     q("#slide")?.classList.add("done", "signing");
-    const lbl = q("#slideLbl"); if (lbl) lbl.textContent = "Firmando…";
+    const lbl = q("#slideLbl"); if (lbl) lbl.textContent = S.signing;
     try {
       const r = await api("POST", `/api/v1/confirmations/${c.id}/confirm`);
       if (r.status === "executed") {
         showReceipt(c, r);
       } else {
         $("card").innerHTML = "";
-        addMsg("bot", r.message || `La operación quedó en estado ${r.status}. No se acreditó ningún activo.`);
+        addMsg("bot", localizeServerMessage(r.message || "") || S.stateFallback(r.status));
       }
       await refresh();
     } catch (e: any) {
       signed = false;
       q("#slide")?.classList.remove("done", "signing");
-      const l2 = q("#slideLbl"); if (l2) l2.textContent = "Deslizá para firmar";
+      const l2 = q("#slideLbl"); if (l2) l2.textContent = S.slideToSign;
       resetSlide();
       addMsg("err", e.message);
     }
@@ -366,21 +378,21 @@ function showCard(c: any, originalText: string) {
 
   q("#rejectBtn").addEventListener("click", async () => {
     const rb = q("#rejectBtn") as HTMLButtonElement;
-    rb.disabled = true; rb.textContent = "Rechazando…";
+    rb.disabled = true; rb.textContent = S.rejecting;
     try {
       const r = await api("POST", `/api/v1/confirmations/${c.id}/reject`);
       clearInterval(countdown);
       $("card").innerHTML = "";
       const n = document.createElement("div");
       n.className = "notice";
-      n.innerHTML = `<div class="nt">Propuesta rechazada</div><div class="mut">${esc(r.message || "No se ejecutó nada.")}</div>`;
+      n.innerHTML = `<div class="nt">${S.rejectedTitle}</div><div class="mut">${esc(localizeServerMessage(r.message || "") || S.nothingExecuted)}</div>`;
       $("chat").appendChild(n);
       addPrompts([
-        { label: `Probar con US$ 5 en ${c.symbol}`, amtSym: [5, c.symbol] },
-        { label: "Armar otra cotización", ask: `Invertí 10 USD en ${NAMES[c.symbol] || c.symbol}` },
+        { label: S.tryWith(c.symbol), amtSym: [5, c.symbol] },
+        { label: S.anotherQuote, ask: orderText(10, NAMES[c.symbol] || c.symbol) },
       ]);
       await refresh();
-    } catch (e: any) { addMsg("err", e.message); rb.disabled = false; rb.textContent = "Rechazar"; }
+    } catch (e: any) { addMsg("err", e.message); rb.disabled = false; rb.textContent = S.reject; }
   });
 
   q("#editBtn").addEventListener("click", () => {
@@ -390,7 +402,7 @@ function showCard(c: any, originalText: string) {
     input.value = originalText;
     const n = document.createElement("div");
     n.className = "notice";
-    n.innerHTML = `<div class="nt">Volvé a escribirla como quieras</div><div class="mut">Dejé tu pedido en el input. Cambiá el monto o el activo y te armo una cotización nueva. Esta propuesta sigue en tu historial.</div>`;
+    n.innerHTML = `<div class="nt">${S.editTitle}</div><div class="mut">${esc(S.editBody)}</div>`;
     $("chat").appendChild(n);
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
@@ -430,7 +442,7 @@ function showExpired(c: any, originalText: string, alreadyClosed: boolean) {
   card.classList.add("expired");
   const prog = card.querySelector("#countProg"); prog?.classList.add("urgent");
   const bar = card.querySelector("#countBar") as HTMLElement | null; if (bar) bar.style.width = "0%";
-  const label = card.querySelector("#countLabel"); if (label) label.textContent = "Cotización vencida";
+  const label = card.querySelector("#countLabel"); if (label) label.textContent = S.expiredLabel;
   const secs = card.querySelector("#countText"); if (secs) secs.textContent = "0 s";
   card.querySelector("#countWrap")?.classList.add("urgent");
   const zone = card.querySelector("#signZone");
@@ -438,45 +450,45 @@ function showExpired(c: any, originalText: string, alreadyClosed: boolean) {
     zone.innerHTML = `
       <div class="expired-note">
         <svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg>
-        <span>${alreadyClosed ? "Esta propuesta ya no está vigente." : "Este precio ya no está garantizado."} Pedí una cotización nueva y volvé a revisar antes de firmar.</span>
+        <span>${alreadyClosed ? S.expiredClosed : S.expiredStale} ${S.expiredBody}</span>
       </div>
-      <button type="button" class="newquote" id="newQuoteBtn">Pedir cotización nueva</button>`;
+      <button type="button" class="newquote" id="newQuoteBtn">${S.newQuote}</button>`;
     zone.querySelector("#newQuoteBtn")!.addEventListener("click", (e) => {
       (e.currentTarget as HTMLButtonElement).disabled = true;
-      (e.currentTarget as HTMLButtonElement).textContent = "Cotizando…";
+      (e.currentTarget as HTMLButtonElement).textContent = S.quoting;
       sendChat(originalText);
     });
   }
-  addMsg("bot", "La cotización venció antes de que firmaras, así que no se ejecutó nada. Es deliberado: un precio viejo no se firma.");
+  addMsg("bot", S.expiredBot);
   refresh();
 }
 
 function showReceipt(c: any, r: any) {
   const isSell = c.side === "sell";
-  const when = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  const when = new Date().toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
   const price = Number(c.amountUsd) / Math.max(parseAmt(c.quotedOut), 1e-12);
   $("card").innerHTML = `
   <div class="receipt" role="status">
     <div class="rhead">
       <span class="checkic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
-      <span class="ttl">${isSell ? "Venta" : "Compra"} ejecutada · paper</span>
-      <span class="when num">hoy, ${when}</span>
+      <span class="ttl">${isSell ? S.receiptSell : S.receiptBuy}</span>
+      <span class="when num">${esc(S.todayAt(when))}</span>
     </div>
     <div class="ramt num">${isSell ? "+" : "+"}${esc(fmtAmt(isSell ? String(c.amountUsd) : c.quotedOut))} <span class="unit">${isSell ? "USDC" : c.symbol}</span></div>
-    <div class="rsub">${esc(r.message || "")}</div>
+    <div class="rsub">${esc(localizeServerMessage(r.message || ""))}</div>
     <div class="details always">
-      <div class="drow"><span class="k">Precio implícito de la cotización</span><span class="v num">US$ ${fmtNum(price)} por ${c.symbol}</span></div>
-      <div class="drow"><span class="k">Mínimo garantizado</span><span class="v num">${esc(fmtAmt(c.minOut))} ${isSell ? "USDC" : c.symbol} · cumplido</span></div>
-      <div class="drow"><span class="k">Ruta</span><span class="v">${isSell ? `${c.symbol} → USDC` : `USDC → ${c.symbol}`} · Jupiter</span></div>
-      <div class="drow"><span class="k">Cotización</span><span class="v num">#${esc(String(c.id).slice(0, 8))}</span></div>
-      <div class="drow"><span class="k">Estado</span><span class="v">Ejecutada en paper · simulada a quote</span></div>
+      <div class="drow"><span class="k">${S.refPrice}</span><span class="v num">US$ ${fmtNum(price)} / ${c.symbol}</span></div>
+      <div class="drow"><span class="k">${S.quote === "Quote" ? "Guaranteed minimum" : "Mínimo garantizado"}</span><span class="v num">${esc(S.minMet(fmtAmt(c.minOut), isSell ? "USDC" : c.symbol))}</span></div>
+      <div class="drow"><span class="k">${S.route}</span><span class="v">${isSell ? `${c.symbol} → USDC` : `USDC → ${c.symbol}`} · Jupiter</span></div>
+      <div class="drow"><span class="k">${S.quote}</span><span class="v num">#${esc(String(c.id).slice(0, 8))}</span></div>
+      <div class="drow"><span class="k">${S.status}</span><span class="v">${S.statusPaper}</span></div>
     </div>
   </div>`;
   $("card").querySelector(".receipt")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   const follow = addPrompts([
-    { label: `¿Cuánto vale hoy mi ${c.symbol}?`, ask: "¿Cuánto tengo?" },
-    { label: `Comprar US$ 5 más de ${c.symbol}`, amtSym: [5, c.symbol] },
-    { label: "Ver mi portfolio", ask: "Mostrame mi portfolio" },
+    { label: S.followValue(c.symbol), ask: S.askBalance },
+    { label: S.followBuyMore(c.symbol), amtSym: [5, c.symbol] },
+    { label: S.followPortfolio, ask: S.askPortfolio },
   ]);
   $("card").appendChild(follow);
 }
@@ -490,12 +502,12 @@ async function sendChat(text: string) {
   try {
     const r = await api("POST", "/api/v1/chat/message", { message: m });
     typing.remove();
-    if (r.reply) addMsg("bot", r.reply);
+    if (r.reply) addMsg("bot", localizeServerReply(r.reply));
     if (r.confirmation) showCard(r.confirmation, m);
     else if (r.portfolio) { renderPortfolio(r.portfolio); await refresh(); }
   } catch (e: any) {
     typing.remove();
-    addMsg("err", e.message === "Failed to fetch" ? "No pude conectar con la API (¿está corriendo en :3001?)." : e.message);
+    addMsg("err", e.message === "Failed to fetch" ? S.connError : e.message);
   }
 }
 
@@ -504,25 +516,25 @@ function greetEmpty() {
   const hasWallet = !!portfolio.paperWalletId;
   const bal = portfolio.paperUsdc || 0;
   if (!hasWallet) {
-    addMsg("bot", "Hola. Soy tu agente paper: cotizo en vivo con Jupiter y nada se ejecuta sin que lo firmes vos. Primero creá tu wallet paper desde el panel de la derecha.");
-    addPrompts([{ label: "Ver mi saldo", ask: "¿Cuánto tengo?" }, { label: "Ver mi portfolio", ask: "Mostrame mi portfolio" }]);
+    addMsg("bot", S.greetNoWallet);
+    addPrompts([{ label: S.seeBalance, ask: S.askBalance }, { label: S.seePortfolio, ask: S.askPortfolio }]);
     return;
   }
   if (!portfolio.positions?.length && bal > 0) {
-    addMsg("bot", `Tenés ${fmtUsd(bal)} en USDC para practicar, sin plata real. Cuando quieras, te armo una primera compra y la firmás vos antes de que se ejecute. ¿Por dónde empezamos?`);
+    addMsg("bot", S.greetFunded(fmtUsd(bal)));
     addPrompts([
-      { label: "Quiero invertir US$ 10 en SPYx", amtSym: [10, "SPYx"] },
-      { label: "Comprar US$ 5 de Apple", amtSym: [5, "AAPLx"] },
-      { label: "Comprar US$ 5 de Nvidia", amtSym: [5, "NVDAx"] },
+      { label: S.promptInvest10, amtSym: [10, "SPYx"] },
+      { label: S.promptBuyApple, amtSym: [5, "AAPLx"] },
+      { label: S.promptBuyNvidia, amtSym: [5, "NVDAx"] },
     ]);
     const watch = document.createElement("div");
     const prices = portfolio.prices || {};
-    watch.innerHTML = `<div class="rlabel" style="margin:12px 0 2px">Activos para mirar</div><div class="watch">${Object.keys(NAMES).map((s) => {
+    watch.innerHTML = `<div class="rlabel" style="margin:12px 0 2px">${S.watchTitle}</div><div class="watch">${Object.keys(NAMES).map((s) => {
       const price = prices[MINTS[s]];
-      return `<button type="button" class="wrow" data-greet-watch="${s}">${mark(s)}<span class="w-main"><span class="w-name">${s}</span><br><span class="w-sub">${NAMES[s]} · token xStocks 1:1</span></span><span class="w-val"><span class="w-v num">${price ? fmtNum(price) : "···"}</span><br><span class="w-c mut">precio en vivo</span></span></button>`;
+      return `<button type="button" class="wrow" data-greet-watch="${s}">${mark(s)}<span class="w-main"><span class="w-name">${s}</span><br><span class="w-sub">${NAMES[s]} · ${S.tokenSub}</span></span><span class="w-val"><span class="w-v num">${price ? fmtNum(price) : "···"}</span><br><span class="w-c mut">${S.livePrice}</span></span></button>`;
     }).join("")}</div>`;
     $("chat").appendChild(watch);
-    watch.querySelectorAll("[data-greet-watch]").forEach((b) => b.addEventListener("click", () => sendChat(`Invertí 10 USD en ${NAMES[b.getAttribute("data-greet-watch")!]}`)));
+    watch.querySelectorAll("[data-greet-watch]").forEach((b) => b.addEventListener("click", () => sendChat(orderText(10, NAMES[b.getAttribute("data-greet-watch")!]))));
   }
 }
 
@@ -542,14 +554,14 @@ function busy(btn: HTMLButtonElement, label: string, fn: () => Promise<void>) {
   };
 }
 
-on("reg", "click", busy($("reg") as HTMLButtonElement, "Creando…", async () => {
+on("reg", "click", busy($("reg") as HTMLButtonElement, S.creating, async () => {
   const msg = $("authMsg");
   try {
     await api("POST", "/api/v1/auth/register", { email: ($("email") as HTMLInputElement).value, password: ($("pass") as HTMLInputElement).value });
-    setMsg(msg, "Cuenta creada. Ahora entrá con tu contraseña.", true);
+    setMsg(msg, S.accountCreated, true);
   } catch (e: any) { setMsg(msg, e.message); }
 }));
-on("login", "click", busy($("login") as HTMLButtonElement, "Entrando…", async () => {
+on("login", "click", busy($("login") as HTMLButtonElement, S.loggingIn, async () => {
   const msg = $("authMsg");
   try {
     const j = await api("POST", "/api/v1/auth/login", { email: ($("email") as HTMLInputElement).value, password: ($("pass") as HTMLInputElement).value });
@@ -562,17 +574,17 @@ on("logout", "click", async () => {
   try { await api("POST", "/api/v1/auth/logout"); } catch {}
   location.reload();
 });
-on("mkWallet", "click", busy($("mkWallet") as HTMLButtonElement, "Creando…", async () => {
-  try { await api("POST", "/api/v1/wallets"); await refresh(); addMsg("bot", "Wallet paper creada. Cargale USDC paper y pedime una cotización."); }
+on("mkWallet", "click", busy($("mkWallet") as HTMLButtonElement, S.creating, async () => {
+  try { await api("POST", "/api/v1/wallets"); await refresh(); addMsg("bot", S.walletCreated); }
   catch (e: any) { addMsg("err", e.message); }
 }));
-on("dep", "click", busy($("dep") as HTMLButtonElement, "Cargando…", async () => {
+on("dep", "click", busy($("dep") as HTMLButtonElement, S.loading, async () => {
   try {
     const ws = await api("GET", "/api/v1/wallets");
     const w = ws.items.find((x: any) => x.mode === "paper");
-    if (!w) throw new Error("Creá tu wallet paper primero.");
+    if (!w) throw new Error(S.needWalletFirst);
     const d = await api("POST", `/api/v1/wallets/${w.id}/deposit`, { amountUsd: Number(($("depAmt") as HTMLInputElement).value) });
-    addMsg("bot", `Listo: tu saldo paper ahora es ${fmtUsd(d.paperUsdc)} USDC.`);
+    addMsg("bot", S.depositDone(fmtUsd(d.paperUsdc)));
     await refresh();
   } catch (e: any) { addMsg("err", e.message); }
 }));
@@ -591,7 +603,7 @@ document.querySelectorAll(".quick button").forEach((b) => b.addEventListener("cl
   const amt = b.getAttribute("data-amt");
   const sym = portfolio?.positions?.[0]?.symbol || "SPYx";
   const input = $("msg") as HTMLTextAreaElement;
-  input.value = `Invertí ${amt} USD en ${NAMES[sym]}`;
+  input.value = orderText(Number(amt), NAMES[sym]);
   input.focus();
 }));
 
