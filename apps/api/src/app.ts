@@ -11,6 +11,8 @@ import { verifyRegistryToken, jupiterPrices } from "./jupiter.js";
 import { createConfirmation, createQuote, effectiveExpiry, err, executeConfirmation, getPaperWallet, PaperWalletProvider, portfolioFor, paperBalances } from "./services.js";
 import { issueToken, listTokens, revokeToken } from "./mcp-tokens.js";
 import { registerMcp, mcpRateLimit } from "./mcp.js";
+import { allAssetInfo, assetInfoFor } from "./asset-info-service.js";
+import { REGISTRY } from "./registry.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 
@@ -166,6 +168,19 @@ export async function buildApp(dbPath = config.databasePath) {
       return { id: c.id, status: "rejected", message: "Compra cancelada. No se movió nada de tu wallet." }; } catch (e) { return replyErr(reply, e); }
   });
   app.get("/api/v1/confirmations/:id", async (req: any, reply) => { try { auth(req); const c = ownedConfirmation(req); const tkn = bySymbol(c.symbol); const dec = tkn?.decimals ?? 8; return { id: c.id, status: c.status, mode: c.mode, symbol: c.symbol, side: c.side, amountUsd: Number(c.amount_in_atomic) / 1e6, quotedOut: String(Number(c.quoted_out_atomic) / 10 ** dec), minOut: String(Number(c.min_out_atomic) / 10 ** dec), slippageBps: c.slippage_bps, priceImpactPct: c.price_impact_pct, expiresAt: c.expires_at, txSignature: null, proposedVia: c.proposed_via ? JSON.parse(c.proposed_via) : null }; } catch (e) { return replyErr(reply, e); } });
+  app.get("/api/v1/assets", async (req: any, reply) => {
+    try {
+      const info = await allAssetInfo();
+      return { mode: "paper", items: info };
+    } catch (e) { return replyErr(reply, e); }
+  });
+  app.get("/api/v1/assets/:symbol", async (req: any, reply) => {
+    try {
+      const token = REGISTRY.find((t) => t.symbol === String(req.params.symbol));
+      if (!token) throw err("ASSET_NOT_IN_REGISTRY", "Activo fuera del registry", 404);
+      return await assetInfoFor(token);
+    } catch (e) { return replyErr(reply, e); }
+  });
   app.get("/api/v1/portfolio", async (req: any, reply) => { try { auth(req); return await portfolioFor(db, req.user.id); } catch (e) { return replyErr(reply, e); } });
   app.get("/api/v1/transactions", async (req: any, reply) => { try { auth(req); const rows = db.prepare("SELECT * FROM confirmations WHERE user_id=? ORDER BY created_at DESC LIMIT 50").all(req.user.id) as any[]; return { items: rows.map((c) => ({ id: c.id, type: c.side, symbol: c.symbol, amountUsd: c.side === "buy" ? Number(c.amount_in_atomic) / 1e6 : null, status: c.status, mode: c.mode, txSignature: null, createdAt: c.created_at })) }; } catch (e) { return replyErr(reply, e); } });
 

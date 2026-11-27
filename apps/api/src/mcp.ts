@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import { fmtAtomic } from "./parser.js";
 import { REGISTRY, byMint, bySymbol } from "./registry.js";
 import { createConfirmation, createQuote, err, getPaperWallet, portfolioFor } from "./services.js";
+import { assetInfoFor } from "./asset-info-service.js";
 import { authenticateToken, requireScope, type TokenAuth } from "./mcp-tokens.js";
 
 const mcpBuckets = new Map<string, { n: number; reset: number }>();
@@ -57,6 +58,18 @@ export function createMcpServer(db: DB, auth: TokenAuth, client: { name?: string
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, wrap(async () => ({ mode: "paper", assets: REGISTRY.map((t) => ({ symbol: t.symbol, name: `${t.human} (${t.name})`, aliases: t.aliases, mint: t.mint, decimals: t.decimals, eligible: true })) })));
+
+  server.registerTool("onda_get_asset_info", {
+    title: "Ver información de un activo de Onda",
+    description: "Devuelve la ficha de un activo operable en Onda: identidad (nombre, mint, subyacente, emisor xStocks/Backed), datos vivos de Jupiter (precio, cambio 24h, volumen, market cap del subyacente) y datos históricos curados (IPO/inception, sector, exchange, expense ratio en ETF) cada uno con su fuente y fecha (`source`/`asOf`). Los campos sin fuente honesta vienen en null: no los completes ni los estimes. Solo lectura, mode paper.",
+    inputSchema: { symbol: z.enum(["SPYx", "AAPLx", "NVDAx"]).describe("Símbolo canónico de onda_list_assets") },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  }, wrap(async ({ symbol }) => {
+    requireScope(auth, "read:portfolio");
+    const token = bySymbol(symbol)!;
+    const info = await assetInfoFor(token);
+    return { ...info };
+  }));
 
   server.registerTool("onda_get_portfolio", {
     title: "Ver portfolio del usuario en Onda",

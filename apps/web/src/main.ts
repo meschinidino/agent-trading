@@ -169,26 +169,81 @@ function renderPortfolio(p: any) {
     box.innerHTML = `<div class="empty-pos"><div class="big">${S.emptyPosTitle}</div>${esc(S.emptyPos)}</div>`;
   } else {
     box.innerHTML = positions.map((x: any) => `
-      <div class="posrow">${mark(x.symbol, "lg")}
+      <button type="button" class="posrow" data-pos="${x.symbol}" aria-label="${esc(S.viewAsset(x.symbol))}">${mark(x.symbol, "lg")}
         <span class="p-main"><span class="p-name">${x.symbol}</span><br><span class="p-qty num">${fmtNum(x.amount, 6)} ${x.symbol}</span></span>
         <span class="p-val"><span class="p-v num">${x.usdValue != null ? fmtUsd(x.usdValue) : "—"}</span><br><span class="p-c mut num">${x.priceUsd ? "US$ " + fmtNum(x.priceUsd) : S.noPrice}</span></span>
-      </div>
+      </button>
       <div class="specrow">${x.symbol} · 1:1 · ${S.underlying} ${UNDERLYING[x.symbol] || x.symbol} · 24/7 · ${S.fromUsd}</div>`).join("");
+    box.querySelectorAll("[data-pos]").forEach((b) => b.addEventListener("click", () => openAssetDetail(b.getAttribute("data-pos")!)));
   }
 
   const prices = p?.prices || {};
   $("watchlist").innerHTML = Object.keys(NAMES).map((s) => {
     const held = positions.find((x: any) => x.symbol === s);
     const price = prices[MINTS[s]];
-    return `<button type="button" class="posrow" data-watch="${s}">${mark(s, "lg")}
+    return `<button type="button" class="posrow" data-watch="${s}" aria-label="${esc(S.viewAsset(s))}">${mark(s, "lg")}
       <span class="p-main"><span class="p-name">${s}</span><br><span class="p-qty">${NAMES[s]} · 1:1${held ? " · " + S.held + " " + fmtNum(held.amount, 6) : ""}</span></span>
-      <span class="p-val"><span class="p-v num">${price ? fmtNum(price) : "···"}</span><br><span class="p-c mut">${S.livePrice}</span></span>
+      <span class="p-val"><span class="p-v num">${price ? fmtNum(price) : "···"}</span><br><span class="p-c mut">${S.livePrice} · <span class="p-info">${S.assetInfo}</span></span></span>
     </button>`;
   }).join("");
   document.querySelectorAll("[data-watch]").forEach((b) => b.addEventListener("click", () => {
-    const s = b.getAttribute("data-watch")!;
-    sendChat(orderText(10, NAMES[s]));
+    openAssetDetail(b.getAttribute("data-watch")!);
   }));
+}
+
+/* ---------- ficha del activo (DIN-26): panel en el rail, sin modal ---------- */
+const assetCache = new Map<string, any>();
+async function openAssetDetail(symbol: string) {
+  const box = $("assetDetail");
+  box.classList.remove("hidden");
+  box.innerHTML = `<div class="asset-detail"><span class="mut">${S.loading}</span></div>`;
+  try {
+    if (!assetCache.has(symbol)) assetCache.set(symbol, await api("GET", `/api/v1/assets/${symbol}`));
+    renderAssetDetail(assetCache.get(symbol));
+  } catch (e: any) {
+    box.innerHTML = `<div class="asset-detail"><span class="mut">${esc(e.message || S.noPrice)}</span></div>`;
+  }
+}
+function fmtBig(n: number | null) {
+  if (n == null) return "—";
+  if (n >= 1e12) return "US$ " + fmtNum(n / 1e12) + "T";
+  if (n >= 1e9) return "US$ " + fmtNum(n / 1e9) + "B";
+  if (n >= 1e6) return "US$ " + fmtNum(n / 1e6) + "M";
+  return fmtUsd(n);
+}
+function renderAssetDetail(a: any) {
+  const box = $("assetDetail");
+  const c = a.curated, l = a.live;
+  const row = (k: string, v: string | null) => v == null || v === "" ? "" : `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`;
+  const chg = l.priceChange24hPct == null ? null : (l.priceChange24hPct >= 0 ? "+" : "") + fmtNum(l.priceChange24hPct) + "%";
+  box.innerHTML = `<div class="asset-detail">
+    <div class="ad-head">${mark(a.symbol, "lg")}<span><span class="ad-name">${esc(a.symbol)}</span><br><span class="ad-sub">${esc(c?.underlyingName || a.human)} · ${esc(a.name)}</span></span>
+    <button type="button" class="linklike ad-close" id="adClose">${S.backToRail}</button></div>
+    <dl>
+      ${row(S.fPrice, l.priceUsd != null ? fmtUsd(l.priceUsd) : "—")}
+      ${row(S.fChange24h, chg)}
+      ${row(S.fVolume24h, fmtBig(l.volume24hUsd))}
+      ${row(S.fUnderlyingMcap, fmtBig(l.underlyingMarketCapUsd))}
+      ${row(S.fIssuer, c?.issuer)}
+      ${row(S.fUnderlying, c ? `${c.underlyingTicker} · ${c.underlyingName}` : null)}
+      ${row(S.fType, c ? (c.assetType === "etf" ? S.fTypeEtf : S.fTypeStock) : null)}
+      ${row(S.fExchange, c?.exchange)}
+      ${row(S.fSector, c?.sector)}
+      ${row(c?.inceptionLabel === "inception" ? S.fInception : S.fIpo, c?.inceptionDate)}
+      ${row(S.fExpense, c?.expenseRatioPct != null ? fmtNum(c.expenseRatioPct, 4) + "%" : null)}
+      ${row(S.fHolders, l.holderCount != null ? fmtNum(l.holderCount, 0) : null)}
+      ${row(S.fStandard, a.token?.standard)}
+      ${row(S.fNetwork, a.token?.network)}
+      ${row(S.fMint, a.mint)}
+    </dl>
+    ${c?.description ? `<p class="ad-note">${esc(IS_EN && c.descriptionEn ? c.descriptionEn : c.description)}</p>` : ""}
+    <p class="ad-note">${esc(IS_EN && a.token?.backingEn ? a.token.backingEn : (a.token?.backing || ""))} ${S.backingNote}</p>
+    <div class="ad-src">${esc(S.liveSource(new Date(l.asOf).toLocaleDateString(LOCALE)))}</div>
+    ${c ? `<div class="ad-src">${esc(S.sourceAsOf(c.sourceName, c.asOf))} · <a href="${esc(c.sourceUrl)}" target="_blank" rel="noopener">${esc(c.sourceUrl.replace("https://", ""))}</a></div>` : ""}
+    <button type="button" class="btn-ghost ad-cta" id="adInvest">${esc(S.investCta(a.symbol))}</button>
+  </div>`;
+  $("adClose").addEventListener("click", () => { box.classList.add("hidden"); box.innerHTML = ""; });
+  $("adInvest").addEventListener("click", () => sendChat(orderText(10, NAMES[a.symbol] || a.symbol)));
 }
 
 function renderHistory(items: any[]) {

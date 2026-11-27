@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-27
+
+### Added
+- **Ficha por activo (info + IPO/inception) en web y MCP (refs DIN-26):** `GET /api/v1/assets` y `GET /api/v1/assets/:symbol` devuelven la vista mergeada por activo (registry + datos vivos de Jupiter con cache server-side de 60s y fail-soft a null: precio, cambio 24h, volumen 24h, market cap del subyacente vía `stockData` de price/v3, holders, estándar Token-2022; + dataset curado tipado en `apps/api/src/asset-info.ts` con emisor xStocks/Backed, subyacente, exchange, sector y fecha IPO/inception — SPY 1993-01-22 inception, AAPL 1980-12-12 IPO, NVDA 1999-01-22 IPO — cada campo con `sourceName`/`sourceUrl`/`asOf`). Los campos sin fuente honesta y keyless (dividend yield) quedan null/ausentes: no se inventan números ni se cachean precios como estáticos.
+- **MCP: nueva tool read-only `onda_get_asset_info`** (7 tools; scope existente `read:portfolio`, sin scopes nuevos y sin tool execution-adjacent): misma ficha tipada con fuente/asOf y `mode:"paper"`. Justificación: `onda_list_assets` debe seguir liviana para resolver símbolos; la ficha completa es una lectura distinta y opt-in.
+- **Web: panel de ficha del activo en el rail** (sin modal: la app no tiene modales y el rail ya es el lenguaje de detalle), alcanzable desde las filas de watchlist y desde posiciones, en ES y EN (todas las strings nuevas en ambos diccionarios de `i18n.ts`), con nota de respaldo 1:1 xStocks, microcopy `Fuente: … · al …` para lo curado y precio desde el mismo path de Jupiter. Acento V1 `--lime` (#a8c256), sin colores nuevos.
+- Tests: shaping del endpoint de assets incl. fail-soft con Jupiter caído, schema del dataset curado, y `onda_get_asset_info` con el cliente MCP real del SDK.
+
 ## [0.4.1] - 2026-11-27
 
 ### Changed
