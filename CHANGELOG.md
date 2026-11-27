@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Paleta de acento V1 Lima domado en landing + app (refs DIN-21).
+
+
 ## [0.4.0] - 2026-11-27
 
 ### Added
