@@ -1,12 +1,16 @@
-const API = "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const $ = (id: string) => document.getElementById(id)!;
 const on = (id: string, ev: string, fn: (e: Event) => void) => $(id).addEventListener(ev, fn);
 let csrf = "";
 let portfolio: any = null;
 let pricesTimer: any = null;
+let countdown: any = null;
 const prevPrices: Record<string, number> = {};
+const sparkPoints: number[] = [];
 
 const NAMES: Record<string, string> = { SPYx: "S&P 500", AAPLx: "Apple", NVDAx: "Nvidia" };
+const UNDERLYING: Record<string, string> = { SPYx: "SPY", AAPLx: "AAPL", NVDAx: "NVDA" };
+const MARK: Record<string, [string, string]> = { SPYx: ["S", "spy"], AAPLx: ["A", "aapl"], NVDAx: ["N", "nvda"], USDC: ["$", "usdc"] };
 const MINTS: Record<string, string> = {
   SPYx: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
   AAPLx: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
@@ -23,6 +27,11 @@ const fmtAmt = (v: any) => {
   const s = String(v ?? "");
   const n = parseAmt(s);
   return Number.isFinite(n) && s !== "" ? fmtNum(n, 6).replace(/0+$/, "").replace(/,$/, "") : s;
+};
+const splitUsd = (n: number) => {
+  const s = fmtUsd(n).replace(/^US\$\s?/, "");
+  const parts = s.split(",");
+  return { int: parts[0], dec: parts.length > 1 ? "," + parts[1] : ",00" };
 };
 
 function setMsg(el: HTMLElement, text: string, ok = false) {
@@ -46,10 +55,15 @@ function esc(t: string) {
   return t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
 
+function mark(sym: string, cls = "") {
+  const [letter, kind] = MARK[sym] || [sym.slice(0, 1), "spy"];
+  return `<span class="tlogo ${kind} ${cls}">${letter}</span>`;
+}
+
 function addMsg(kind: "me" | "bot" | "err", text: string) {
   const d = document.createElement("div");
   d.className = "msg " + kind;
-  d.textContent = text;
+  d.innerHTML = `<p>${esc(text)}</p>`;
   $("chat").appendChild(d);
   d.scrollIntoView({ block: "nearest", behavior: "smooth" });
   return d;
@@ -57,23 +71,55 @@ function addMsg(kind: "me" | "bot" | "err", text: string) {
 function addTyping() {
   const d = document.createElement("div");
   d.className = "msg bot typing";
-  d.innerHTML = "<i></i><i></i><i></i> El agente está cotizando…";
+  d.innerHTML = "<p><i></i><i></i><i></i>El agente está cotizando…</p>";
   $("chat").appendChild(d);
   d.scrollIntoView({ block: "nearest", behavior: "smooth" });
   return d;
 }
+function addPrompts(items: Array<{ label: string; ask?: string; amtSym?: [number, string] }>) {
+  const wrap = document.createElement("div");
+  wrap.className = "prompts";
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = it.label;
+    b.addEventListener("click", () => {
+      if (it.amtSym) sendChat(`Invertí ${it.amtSym[0]} USD en ${NAMES[it.amtSym[1]] || it.amtSym[1]}`);
+      else if (it.ask) sendChat(it.ask);
+    });
+    wrap.appendChild(b);
+  }
+  $("chat").appendChild(wrap);
+  wrap.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  return wrap;
+}
 
+/* ---------- top strip: precios en vivo, sin variación inventada ---------- */
 function renderTicker(prices: Record<string, number> | null) {
   $("ticker").innerHTML = Object.keys(NAMES)
     .map((s) => {
       const p = prices?.[MINTS[s]];
-      if (p == null) return `<span class="tick skel" title="${NAMES[s]}"><span class="sym">${s}</span><b class="num">$000,00</b></span>`;
+      if (p == null) return `<span class="tk"><span class="sym">${s}</span><span class="pr num">···</span></span>`;
       const prev = prevPrices[s];
       const flash = prev != null && p !== prev ? (p > prev ? "flash-up" : "flash-down") : "";
       prevPrices[s] = p;
-      return `<span class="tick ${flash}" title="${NAMES[s]} · precio de Jupiter en vivo"><span class="sym">${s}</span><b class="num">$${fmtNum(p)}</b></span>`;
+      return `<span class="tk ${flash}" title="${NAMES[s]} · precio de Jupiter en vivo"><span class="sym">${s}</span><span class="pr num">$${fmtNum(p)}</span></span>`;
     })
     .join("");
+}
+
+/* ---------- rail ---------- */
+function renderSpark(total: number) {
+  sparkPoints.push(total);
+  if (sparkPoints.length > 40) sparkPoints.shift();
+  const wrap = $("sparkWrap");
+  if (sparkPoints.length < 2) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const min = Math.min(...sparkPoints), max = Math.max(...sparkPoints);
+  const range = max - min || 1;
+  const pts = sparkPoints.map((v, i) => `${(i / (sparkPoints.length - 1)) * 316},${50 - ((v - min) / range) * 44}`).join(" ");
+  const up = sparkPoints[sparkPoints.length - 1] >= sparkPoints[0];
+  $("spark").innerHTML = `<polyline points="${pts}" fill="none" stroke="${up ? "#3fce8f" : "#f27676"}" stroke-width="1.5"/>`;
 }
 
 function renderPortfolio(p: any) {
@@ -81,41 +127,73 @@ function renderPortfolio(p: any) {
   renderTicker(p?.prices || null);
   const positions = p?.positions || [];
   const total = (p?.paperUsdc || 0) + positions.reduce((a: number, x: any) => a + (x.usdValue || 0), 0);
-  $("totalValue").textContent = p ? fmtUsd(total) : "—";
-  $("totalDetail").innerHTML = p
-    ? `<b>${fmtUsd(p.paperUsdc)}</b> en USDC paper listos para invertir · ${positions.length ? positions.length + (positions.length === 1 ? " posición" : " posiciones") + " valuada" + (positions.length === 1 ? "" : "s") + " en vivo" : "sin posiciones todavía"}`
-    : "Valor total de tu portfolio paper";
+  if (p) {
+    const sp = splitUsd(total);
+    $("totalValue").innerHTML = `US$ ${esc(sp.int)}<span style="font-size:.52em;color:#79818b;font-weight:500">${esc(sp.dec)}</span>`;
+    $("totalDetail").innerHTML = positions.length
+      ? `<span class="mut">${fmtUsd(p.paperUsdc)} en USDC · ${positions.length} ${positions.length === 1 ? "posición valuada" : "posiciones valuadas"} en vivo</span>`
+      : `<span class="mut">Todo en USDC, listo para tu primera compra</span>`;
+    renderSpark(total);
+  } else {
+    $("totalValue").textContent = "—";
+    $("totalDetail").innerHTML = `<span class="mut">Entrá para ver tu portfolio paper</span>`;
+  }
+
+  const avail = $("availValue");
+  avail.textContent = p ? fmtUsd(p.paperUsdc) : "—";
+  const hasWallet = !!p?.paperWalletId;
+  $("walletText").textContent = hasWallet ? "USDC disponible" : "Todavía no tenés wallet paper";
+  $("walletDetail").textContent = !p
+    ? "Tu wallet paper es un ledger demo, sin claves ni fondos reales. Los precios vienen de Jupiter en vivo."
+    : hasWallet
+      ? "Ledger demo, sin claves ni fondos reales. Cargale USDC paper para operar."
+      : "Creala para cargar USDC paper y pedir tu primera cotización.";
+  $("mkWallet").classList.toggle("hidden", !p || hasWallet);
+  $("depositBox").classList.toggle("hidden", !hasWallet);
+
   const box = $("positions");
   if (!p) {
-    box.innerHTML = `<div class="empty"><h3>Entrá para ver tu portfolio</h3><p>Cuando tengas wallet y posiciones, aparecen acá valuadas en vivo.</p></div>`;
-    return;
-  }
-  if (!positions.length) {
-    box.innerHTML = `<div class="empty"><h3>Todavía no tenés posiciones</h3><p>Pedile al agente <b>“Invertí 10 USD en el S&P 500”</b>: cotiza en vivo y, si confirmás, tu posición aparece acá al instante.</p></div>`;
+    box.innerHTML = `<div class="empty-pos"><div class="big">Entrá para ver tus posiciones</div>Cuando tengas wallet y posiciones, aparecen acá valuadas en vivo.</div>`;
+  } else if (!positions.length) {
+    box.innerHTML = `<div class="empty-pos"><div class="big">Todavía no tenés posiciones</div>Cuando compres, cada activo aparece acá: cantidad, valor y precio en vivo. Pedile al agente “Invertí 10 USD en el S&amp;P 500”.</div>`;
   } else {
-    box.innerHTML = positions.map((x: any) => `<div class="position"><div><span class="pos-name">${NAMES[x.symbol] || x.symbol}<span class="sym">${x.symbol}</span></span><p class="num">${fmtNum(x.amount, 6)} ${x.symbol} · precio ${x.priceUsd ? "$" + fmtNum(x.priceUsd) : "—"}</p></div><div class="val"><b class="num">${x.usdValue != null ? fmtUsd(x.usdValue) : "—"}</b><p>valor en vivo</p></div></div>`).join("");
+    box.innerHTML = positions.map((x: any) => `
+      <div class="posrow">${mark(x.symbol, "lg")}
+        <span class="p-main"><span class="p-name">${x.symbol}</span><br><span class="p-qty num">${fmtNum(x.amount, 6)} ${x.symbol}</span></span>
+        <span class="p-val"><span class="p-v num">${x.usdValue != null ? fmtUsd(x.usdValue) : "—"}</span><br><span class="p-c mut num">${x.priceUsd ? "US$ " + fmtNum(x.priceUsd) : "sin precio"}</span></span>
+      </div>
+      <div class="specrow">${x.symbol} · 1:1 · subyacente ${UNDERLYING[x.symbol] || x.symbol} · 24/7 · desde US$ 1</div>`).join("");
   }
-  const hasWallet = !!p.paperWalletId;
-  $("walletText").textContent = hasWallet ? "Wallet paper activa" : "Todavía no tenés wallet paper.";
-  $("walletDetail").textContent = hasWallet ? `Saldo disponible: ${fmtUsd(p.paperUsdc)} USDC paper.` : "Creala para cargar USDC paper y pedir tu primera cotización.";
-  $("mkWallet").classList.toggle("hidden", hasWallet);
-  $("depositBox").classList.toggle("hidden", !hasWallet);
+
+  const prices = p?.prices || {};
+  $("watchlist").innerHTML = Object.keys(NAMES).map((s) => {
+    const held = positions.find((x: any) => x.symbol === s);
+    const price = prices[MINTS[s]];
+    return `<button type="button" class="posrow" data-watch="${s}">${mark(s, "lg")}
+      <span class="p-main"><span class="p-name">${s}</span><br><span class="p-qty">${NAMES[s]} · 1:1${held ? " · tenés " + fmtNum(held.amount, 6) : ""}</span></span>
+      <span class="p-val"><span class="p-v num">${price ? fmtNum(price) : "···"}</span><br><span class="p-c mut">precio en vivo</span></span>
+    </button>`;
+  }).join("");
+  document.querySelectorAll("[data-watch]").forEach((b) => b.addEventListener("click", () => {
+    const s = b.getAttribute("data-watch")!;
+    sendChat(`Invertí 10 USD en ${NAMES[s]}`);
+  }));
 }
 
 function renderHistory(items: any[]) {
-  const pill: Record<string, [string, string]> = {
-    executed: ["Ejecutada", "pill-executed"], confirmed: ["Ejecutada", "pill-executed"],
-    rejected: ["Rechazada", "pill-rejected"],
-    expired: ["Expirada", "pill-expired"], superseded: ["Reemplazada", "pill-expired"],
-    pending_confirmation: ["Esperando tu firma", "pill-pending"], proposed: ["Propuesta", "pill-pending"],
+  const label: Record<string, [string, string]> = {
+    executed: ["ejecutada", "st-executed"], confirmed: ["ejecutada", "st-executed"],
+    rejected: ["rechazada", "st-rejected"],
+    expired: ["vencida", "st-expired"], superseded: ["reemplazada", "st-expired"],
+    pending_confirmation: ["por firmar", "st-pending"], proposed: ["propuesta", "st-pending"],
   };
   $("history").innerHTML = items.length
     ? items.map((x) => {
-        const [label, cls] = pill[x.status] || [x.status, "pill-expired"];
-        const when = new Date(x.createdAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-        return `<div class="led-row"><div class="led-main"><span class="what">${x.type === "sell" ? "Venta" : "Compra"} de ${NAMES[x.symbol] || x.symbol}</span><span class="when">${when} · paper</span></div><div class="led-right">${x.amountUsd != null ? `<span class="led-amt num">${fmtUsd(x.amountUsd)}</span>` : ""}<span class="pill ${cls}">${label}</span></div></div>`;
+        const [txt, cls] = label[x.status] || [x.status, "st-expired"];
+        const when = new Date(x.createdAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+        return `<div class="lrow"><span class="l-act">${x.type === "sell" ? "Venta" : "Compra"} de ${NAMES[x.symbol] || x.symbol}</span>${x.amountUsd != null ? `<span class="l-amt num">${fmtUsd(x.amountUsd)}</span>` : ""}<span class="l-st ${cls}">${txt}</span><span class="l-meta num">${when}</span></div>`;
       }).join("")
-    : `<div class="empty"><h3>Sin movimientos todavía</h3><p>Tu historial es el registro de cada propuesta: qué pediste, qué cotizó Jupiter y si firmaste, rechazaste o dejaste vencer la cotización.</p></div>`;
+    : `<div class="empty-hist">Sin movimientos todavía. Cada propuesta del agente — firmada, rechazada o vencida — queda registrada acá.</div>`;
 }
 
 async function refresh() {
@@ -131,86 +209,279 @@ function startPrices() {
   pricesTimer = setInterval(refresh, 30000);
 }
 
-let countdown: any = null;
-function showCard(c: any) {
+/* ---------- swap object: confirmación en el hilo ---------- */
+function amountHtml(value: string, sym: string) {
+  const n = parseAmt(value);
+  if (!Number.isFinite(n)) return `<span class="big">${esc(value)}</span><span class="unit">${sym}</span>`;
+  const s = fmtAmt(value);
+  const [int, dec] = s.split(",");
+  return `<span class="big">${esc(int)}</span>${dec ? `<span class="dec">,${esc(dec)}</span>` : ""}<span class="unit">${sym}</span>`;
+}
+
+function showCard(c: any, originalText: string) {
   clearInterval(countdown);
   const human = NAMES[c.symbol] || c.human || c.symbol;
   const isSell = c.side === "sell";
-  const rows: Array<[string, string, boolean?]> = isSell
-    ? [["Vendés", `${fmtAmt(c.quotedOut)} ${c.symbol}`], ["Recibís aproximadamente", fmtUsd(Number(c.amountUsd))], ["Mínimo que recibís", `${fmtAmt(c.minOut)} USDC`], ["Slippage máximo", `${c.slippageBps} bps (0,50%)`], ["Impacto de precio", `${fmtNum(Math.abs(Number(c.priceImpactPct)))}%`]]
-    : [["Invertís", fmtUsd(Number(c.amountUsd)), true], ["Recibís aproximadamente", `${fmtAmt(c.quotedOut)} ${c.symbol}`], ["Mínimo garantizado", `${fmtAmt(c.minOut)} ${c.symbol}`], ["Precio de referencia", `$${fmtNum(Number(c.amountUsd) / Math.max(parseAmt(c.quotedOut), 1e-12))} por ${c.symbol}`], ["Slippage máximo", `${c.slippageBps} bps (0,50%)`], ["Impacto de precio", `${fmtNum(Math.abs(Number(c.priceImpactPct)))}%`]];
-  $("card").innerHTML = `
-  <div class="confirm" id="confirmCard" role="group" aria-label="Tarjeta de confirmación">
-    <div class="confirm-head">
-      <span class="doc-tag">Documento de confirmación · paper</span>
-      <h3>${isSell ? "Confirmá tu venta" : "Confirmá tu compra"} de ${esc(human)}</h3>
-      <p class="sub">Cotización de Jupiter en vivo, válida por 60 segundos. Si firmás, la operación se simula a este precio contra tu saldo paper. Si no, no se mueve nada.</p>
+  const usd = Number(c.amountUsd);
+  const price = usd / Math.max(parseAmt(c.quotedOut), 1e-12);
+  const quoteId = String(c.id).slice(0, 8);
+  const inPanel = isSell
+    ? { side: "Vendés", amt: amountHtml(c.quotedOut, c.symbol), sym: c.symbol, sub: `1 ${c.symbol} = US$ ${fmtNum(price)} · precio en vivo de Jupiter` }
+    : { side: "Invertís", amt: amountHtml(String(usd), "USDC"), sym: "USDC", sub: portfolio ? `Saldo después: ${fmtUsd(Math.max(0, (portfolio.paperUsdc || 0) - usd))}` : "USDC paper" };
+  const outPanel = isSell
+    ? { side: "Recibís", amt: amountHtml(String(usd), "USDC"), sym: "USDC", sub: "USDC paper, acreditado al firmar" }
+    : { side: "Recibís", amt: amountHtml(c.quotedOut, c.symbol), sym: c.symbol, sub: `1 ${c.symbol} = US$ ${fmtNum(price)} · precio en vivo de Jupiter` };
+  const minSym = isSell ? "USDC" : c.symbol;
+
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+  <div class="swap" id="confirmCard" role="group" aria-label="Confirmación de ${isSell ? "venta" : "compra"}">
+    <div class="countprogress" id="countProg"><i id="countBar" style="width:100%"></i></div>
+    <div class="swap-head">
+      <span class="ttl">Confirmá tu ${isSell ? "venta" : "compra"}</span>
+      <span class="sp"></span>
+      <span class="count" id="countWrap"><span id="countLabel">Vence en</span><span class="secs num" id="countText">…</span></span>
     </div>
-    <div class="kv">${rows.map((r, i) => `<div class="row${r[2] ? " hero-row" : ""}"><span class="n">${String(i + 1).padStart(2, "0")}</span><span class="k">${r[0]}</span><span class="v mono">${esc(r[1])}</span></div>`).join("")}</div>
-    <div class="count-zone">
-      <div class="countbar"><i id="countBar" style="width:100%"></i></div>
-      <div class="count-row" id="countRow"><span>La cotización vence en</span><b class="num" id="countText">…</b></div>
+    <div class="panels">
+      <div class="panel"><div class="p-left"><div class="side">${inPanel.side}</div><div class="amount num">${inPanel.amt}</div><div class="sub">${inPanel.sub}</div></div><span class="token">${mark(inPanel.sym)}${inPanel.sym}</span></div>
+      <div class="divider"><span class="circ"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v13m0 0L3.5 13.5M7 17l3.5-3.5M17 20V7m0 0l3.5 3.5M17 7l-3.5 3.5"/></svg></span></div>
+      <div class="panel"><div class="p-left"><div class="side">${outPanel.side}</div><div class="amount num">${outPanel.amt}</div><div class="sub">${outPanel.sub}</div></div><span class="token">${mark(outPanel.sym)}${outPanel.sym}</span></div>
     </div>
-    <div class="cta"><button class="ok" id="confirmBtn">Firmar ${isSell ? "venta" : "compra"}</button><button class="no" id="rejectBtn">Rechazar</button></div>
-    <p class="safe">Modo paper: no se firma ni se envía ninguna transacción real. El precio y el mínimo salen de la cotización de Jupiter de este momento.</p>
+    <div class="guarantee">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.2 8.2-7 10-3.8-1.8-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span>Mínimo garantizado: <span class="gamt num">${esc(fmtAmt(c.minOut))} ${minSym}</span> — si no se cumple, no se ejecuta.</span>
+    </div>
+    <button type="button" class="details-toggle" id="detToggle" aria-expanded="false">Detalle técnico
+      <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="details" id="detBody">
+      <div class="drow"><span class="k">Slippage máximo</span><span class="v num">${c.slippageBps} bps (${fmtNum(Number(c.slippageBps) / 100)}%)</span></div>
+      <div class="drow"><span class="k">Impacto de precio</span><span class="v num">${fmtNum(Math.abs(Number(c.priceImpactPct)))}%</span></div>
+      <div class="drow"><span class="k">Ruta</span><span class="v">${isSell ? `${c.symbol} → USDC` : `USDC → ${c.symbol}`} · Jupiter</span></div>
+      <div class="drow"><span class="k">Precio implícito de la cotización</span><span class="v num">US$ ${fmtNum(price)} por ${c.symbol}</span></div>
+      <div class="drow"><span class="k">Cotización</span><span class="v num">#${esc(quoteId)}</span></div>
+      <div class="drow"><span class="k">Modalidad</span><span class="v">Paper · sin plata real</span></div>
+    </div>
+    <div id="signZone">
+      <div class="slide" id="slide">
+        <div class="fill" id="slideFill"></div>
+        <div class="lbl" id="slideLbl">Deslizá para firmar</div>
+        <div class="thumb" id="slideThumb" role="slider" aria-label="Deslizá para firmar la ${isSell ? "venta" : "compra"}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m0 0l-6-6m6 6l-6 6"/></svg>
+        </div>
+      </div>
+      <div class="holdrow"><button type="button" class="hold" id="holdBtn"><span class="hfill" id="holdFill"></span>o mantené presionado para firmar</button></div>
+      <div class="sign-alt"><button type="button" id="signBtn">Firmar con botón (alternativa accesible)</button></div>
+    </div>
+    <div class="swap-actions">
+      <button type="button" class="linklike danger" id="rejectBtn">Rechazar</button>
+      <span class="sp"></span>
+      <button type="button" class="linklike" id="editBtn">Editar en el chat</button>
+    </div>
   </div>`;
+  const card = wrap.firstElementChild as HTMLElement;
+  $("card").replaceChildren(card);
+  card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+  const q = (sel: string) => card.querySelector(sel) as HTMLElement;
+  let signed = false;
+
+  const doConfirm = async () => {
+    if (signed) return;
+    signed = true;
+    clearInterval(countdown);
+    q("#slide")?.classList.add("done", "signing");
+    const lbl = q("#slideLbl"); if (lbl) lbl.textContent = "Firmando…";
+    try {
+      const r = await api("POST", `/api/v1/confirmations/${c.id}/confirm`);
+      if (r.status === "executed") {
+        showReceipt(c, r);
+      } else {
+        $("card").innerHTML = "";
+        addMsg("bot", r.message || `La operación quedó en estado ${r.status}. No se acreditó ningún activo.`);
+      }
+      await refresh();
+    } catch (e: any) {
+      signed = false;
+      q("#slide")?.classList.remove("done", "signing");
+      const l2 = q("#slideLbl"); if (l2) l2.textContent = "Deslizá para firmar";
+      resetSlide();
+      addMsg("err", e.message);
+    }
+  };
+
+  /* slide-to-confirm: drag >=85%, hold fallback, keyboard + button alternative */
+  const slide = q("#slide"), thumb = q("#slideThumb"), fill = q("#slideFill"), lbl = q("#slideLbl");
+  const maxX = () => Math.max(1, slide.clientWidth - thumb.offsetWidth - 8);
+  function setProgress(pct: number) {
+    const x = (pct / 100) * maxX();
+    thumb.style.transform = `translateX(${x}px)`;
+    fill.style.width = pct + "%";
+    thumb.setAttribute("aria-valuenow", String(Math.round(pct)));
+  }
+  function resetSlide() { setProgress(0); }
+  let dragging = false, startX = 0, curPct = 0;
+  thumb.addEventListener("pointerdown", (e) => {
+    dragging = true; startX = e.clientX - (curPct / 100) * maxX();
+    thumb.setPointerCapture(e.pointerId);
+  });
+  thumb.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    curPct = Math.min(100, Math.max(0, ((e.clientX - startX) / maxX()) * 100));
+    setProgress(curPct);
+    if (curPct >= 85) { dragging = false; setProgress(100); doConfirm(); }
+  });
+  const endDrag = () => { if (dragging) { dragging = false; curPct = 0; resetSlide(); } };
+  thumb.addEventListener("pointerup", endDrag);
+  thumb.addEventListener("pointercancel", endDrag);
+  thumb.addEventListener("keydown", (e) => {
+    const k = (e as KeyboardEvent).key;
+    if (k === "ArrowRight" || k === "ArrowUp") { e.preventDefault(); curPct = Math.min(100, curPct + 10); setProgress(curPct); if (curPct >= 85) { setProgress(100); doConfirm(); } }
+    else if (k === "ArrowLeft" || k === "ArrowDown") { e.preventDefault(); curPct = Math.max(0, curPct - 10); setProgress(curPct); }
+    else if (k === "Enter" || k === " ") { e.preventDefault(); doConfirm(); }
+    else if (k === "Home") { curPct = 0; resetSlide(); }
+    else if (k === "End") { curPct = 100; setProgress(100); doConfirm(); }
+  });
+
+  let holdTimer: any = null, holdStart = 0;
+  const holdBtn = q("#holdBtn") as HTMLButtonElement, holdFill = q("#holdFill");
+  const holdTick = () => {
+    const pct = Math.min(100, ((Date.now() - holdStart) / 900) * 100);
+    holdFill.style.width = pct + "%";
+    if (pct >= 100) { cancelHold(); doConfirm(); return; }
+    holdTimer = requestAnimationFrame(holdTick);
+  };
+  const cancelHold = () => { if (holdTimer) cancelAnimationFrame(holdTimer); holdTimer = null; holdFill.style.width = "0%"; };
+  holdBtn.addEventListener("pointerdown", () => { holdStart = Date.now(); holdTimer = requestAnimationFrame(holdTick); });
+  holdBtn.addEventListener("pointerup", cancelHold);
+  holdBtn.addEventListener("pointerleave", cancelHold);
+  q("#signBtn").addEventListener("click", doConfirm);
+
+  q("#detToggle").addEventListener("click", () => {
+    const t = q("#detToggle");
+    const open = t.getAttribute("aria-expanded") === "true";
+    t.setAttribute("aria-expanded", String(!open));
+    q("#detBody").classList.toggle("open", !open);
+  });
+
+  q("#rejectBtn").addEventListener("click", async () => {
+    const rb = q("#rejectBtn") as HTMLButtonElement;
+    rb.disabled = true; rb.textContent = "Rechazando…";
+    try {
+      const r = await api("POST", `/api/v1/confirmations/${c.id}/reject`);
+      clearInterval(countdown);
+      $("card").innerHTML = "";
+      const n = document.createElement("div");
+      n.className = "notice";
+      n.innerHTML = `<div class="nt">Propuesta rechazada</div><div class="mut">${esc(r.message || "No se ejecutó nada.")}</div>`;
+      $("chat").appendChild(n);
+      addPrompts([
+        { label: `Probar con US$ 5 en ${c.symbol}`, amtSym: [5, c.symbol] },
+        { label: "Armar otra cotización", ask: `Invertí 10 USD en ${NAMES[c.symbol] || c.symbol}` },
+      ]);
+      await refresh();
+    } catch (e: any) { addMsg("err", e.message); rb.disabled = false; rb.textContent = "Rechazar"; }
+  });
+
+  q("#editBtn").addEventListener("click", () => {
+    clearInterval(countdown);
+    $("card").innerHTML = "";
+    const input = $("msg") as HTMLTextAreaElement;
+    input.value = originalText;
+    const n = document.createElement("div");
+    n.className = "notice";
+    n.innerHTML = `<div class="nt">Volvé a escribirla como quieras</div><div class="mut">Dejé tu pedido en el input. Cambiá el monto o el activo y te armo una cotización nueva. Esta propuesta sigue en tu historial.</div>`;
+    $("chat").appendChild(n);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
 
   api("POST", `/api/v1/confirmations/${c.id}/present`)
     .then((p) => {
+      if (p.status !== "pending_confirmation") { showExpired(c, originalText, true); return; }
       const exp = new Date(p.expiresAt).getTime();
       const span = Math.max(1, exp - Date.now());
       const tick = () => {
         const leftMs = exp - Date.now();
         const left = Math.max(0, Math.ceil(leftMs / 1000));
-        const ct = $("countText");
+        const ct = q("#countText");
         if (!ct) { clearInterval(countdown); return; }
-        ct.textContent = left > 0 ? `0:${String(left).padStart(2, "0")}` : "vencida";
-        const bar = $("countBar");
+        ct.textContent = left > 0 ? `${left} s` : "0 s";
+        const bar = q("#countBar");
         if (bar) bar.style.width = `${Math.max(0, (leftMs / span) * 100)}%`;
-        const card = $("confirmCard");
-        card?.classList.toggle("urgent", left <= 10 && left > 0);
+        const urgent = left <= 10 && left > 0;
+        q("#countProg")?.classList.toggle("urgent", urgent);
+        q("#countWrap")?.classList.toggle("urgent", urgent);
         if (left <= 0) {
           clearInterval(countdown);
-          card?.classList.add("expired");
-          card?.classList.remove("urgent");
-          const b = $("confirmBtn") as HTMLButtonElement | null;
-          if (b) { b.disabled = true; b.textContent = "Cotización vencida"; }
-          const row = $("countRow");
-          if (row) row.innerHTML = `<span>Esta cotización venció.</span><b>Pedí una nueva al agente</b>`;
+          showExpired(c, originalText, false);
         }
       };
       tick();
       countdown = setInterval(tick, 250);
     })
     .catch((e: any) => addMsg("err", e.message));
-
-  $("confirmBtn").onclick = async () => {
-    const b = $("confirmBtn") as HTMLButtonElement;
-    b.disabled = true; b.textContent = "Firmando…";
-    try {
-      const r = await api("POST", `/api/v1/confirmations/${c.id}/confirm`);
-      clearInterval(countdown);
-      $("card").innerHTML = `<div class="receipt"><h4>${isSell ? "Venta" : "Compra"} ejecutada</h4><p>${esc(r.message || "Operación " + r.status)} Tu portfolio y el historial ya reflejan el movimiento.</p></div>`;
-      await refresh();
-    } catch (e: any) {
-      addMsg("err", e.message);
-      b.disabled = false; b.textContent = "Reintentar firma";
-    }
-  };
-  $("rejectBtn").onclick = async () => {
-    const rb = $("rejectBtn") as HTMLButtonElement;
-    rb.disabled = true; rb.textContent = "Rechazando…";
-    try {
-      const r = await api("POST", `/api/v1/confirmations/${c.id}/reject`);
-      clearInterval(countdown);
-      $("card").innerHTML = "";
-      addMsg("bot", r.message || "Operación rechazada. No se movió nada de tu wallet.");
-      await refresh();
-    } catch (e: any) { addMsg("err", e.message); rb.disabled = false; rb.textContent = "Rechazar"; }
-  };
-  $("confirmCard").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
+function showExpired(c: any, originalText: string, alreadyClosed: boolean) {
+  if (!$("confirmCard")) return;
+  const isSell = c.side === "sell";
+  const card = $("confirmCard");
+  card.classList.add("expired");
+  const prog = card.querySelector("#countProg"); prog?.classList.add("urgent");
+  const bar = card.querySelector("#countBar") as HTMLElement | null; if (bar) bar.style.width = "0%";
+  const label = card.querySelector("#countLabel"); if (label) label.textContent = "Cotización vencida";
+  const secs = card.querySelector("#countText"); if (secs) secs.textContent = "0 s";
+  card.querySelector("#countWrap")?.classList.add("urgent");
+  const zone = card.querySelector("#signZone");
+  if (zone) {
+    zone.innerHTML = `
+      <div class="expired-note">
+        <svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg>
+        <span>${alreadyClosed ? "Esta propuesta ya no está vigente." : "Este precio ya no está garantizado."} Pedí una cotización nueva y volvé a revisar antes de firmar.</span>
+      </div>
+      <button type="button" class="newquote" id="newQuoteBtn">Pedir cotización nueva</button>`;
+    zone.querySelector("#newQuoteBtn")!.addEventListener("click", (e) => {
+      (e.currentTarget as HTMLButtonElement).disabled = true;
+      (e.currentTarget as HTMLButtonElement).textContent = "Cotizando…";
+      sendChat(originalText);
+    });
+  }
+  addMsg("bot", "La cotización venció antes de que firmaras, así que no se ejecutó nada. Es deliberado: un precio viejo no se firma.");
+  refresh();
+}
+
+function showReceipt(c: any, r: any) {
+  const isSell = c.side === "sell";
+  const when = new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  const price = Number(c.amountUsd) / Math.max(parseAmt(c.quotedOut), 1e-12);
+  $("card").innerHTML = `
+  <div class="receipt" role="status">
+    <div class="rhead">
+      <span class="checkic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+      <span class="ttl">${isSell ? "Venta" : "Compra"} ejecutada · paper</span>
+      <span class="when num">hoy, ${when}</span>
+    </div>
+    <div class="ramt num">${isSell ? "+" : "+"}${esc(fmtAmt(isSell ? String(c.amountUsd) : c.quotedOut))} <span class="unit">${isSell ? "USDC" : c.symbol}</span></div>
+    <div class="rsub">${esc(r.message || "")}</div>
+    <div class="details always">
+      <div class="drow"><span class="k">Precio implícito de la cotización</span><span class="v num">US$ ${fmtNum(price)} por ${c.symbol}</span></div>
+      <div class="drow"><span class="k">Mínimo garantizado</span><span class="v num">${esc(fmtAmt(c.minOut))} ${isSell ? "USDC" : c.symbol} · cumplido</span></div>
+      <div class="drow"><span class="k">Ruta</span><span class="v">${isSell ? `${c.symbol} → USDC` : `USDC → ${c.symbol}`} · Jupiter</span></div>
+      <div class="drow"><span class="k">Cotización</span><span class="v num">#${esc(String(c.id).slice(0, 8))}</span></div>
+      <div class="drow"><span class="k">Estado</span><span class="v">Ejecutada en paper · simulada a quote</span></div>
+    </div>
+  </div>`;
+  $("card").querySelector(".receipt")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  const follow = addPrompts([
+    { label: `¿Cuánto vale hoy mi ${c.symbol}?`, ask: "¿Cuánto tengo?" },
+    { label: `Comprar US$ 5 más de ${c.symbol}`, amtSym: [5, c.symbol] },
+    { label: "Ver mi portfolio", ask: "Mostrame mi portfolio" },
+  ]);
+  $("card").appendChild(follow);
+}
+
+/* ---------- chat ---------- */
 async function sendChat(text: string) {
   const m = text.trim();
   if (!m) return;
@@ -220,11 +491,38 @@ async function sendChat(text: string) {
     const r = await api("POST", "/api/v1/chat/message", { message: m });
     typing.remove();
     if (r.reply) addMsg("bot", r.reply);
-    if (r.confirmation) showCard(r.confirmation);
-    if (r.portfolio) { renderPortfolio(r.portfolio); await refresh(); }
+    if (r.confirmation) showCard(r.confirmation, m);
+    else if (r.portfolio) { renderPortfolio(r.portfolio); await refresh(); }
   } catch (e: any) {
     typing.remove();
     addMsg("err", e.message === "Failed to fetch" ? "No pude conectar con la API (¿está corriendo en :3001?)." : e.message);
+  }
+}
+
+function greetEmpty() {
+  if (!portfolio) return;
+  const hasWallet = !!portfolio.paperWalletId;
+  const bal = portfolio.paperUsdc || 0;
+  if (!hasWallet) {
+    addMsg("bot", "Hola. Soy tu agente paper: cotizo en vivo con Jupiter y nada se ejecuta sin que lo firmes vos. Primero creá tu wallet paper desde el panel de la derecha.");
+    addPrompts([{ label: "Ver mi saldo", ask: "¿Cuánto tengo?" }, { label: "Ver mi portfolio", ask: "Mostrame mi portfolio" }]);
+    return;
+  }
+  if (!portfolio.positions?.length && bal > 0) {
+    addMsg("bot", `Tenés ${fmtUsd(bal)} en USDC para practicar, sin plata real. Cuando quieras, te armo una primera compra y la firmás vos antes de que se ejecute. ¿Por dónde empezamos?`);
+    addPrompts([
+      { label: "Quiero invertir US$ 10 en SPYx", amtSym: [10, "SPYx"] },
+      { label: "Comprar US$ 5 de Apple", amtSym: [5, "AAPLx"] },
+      { label: "Comprar US$ 5 de Nvidia", amtSym: [5, "NVDAx"] },
+    ]);
+    const watch = document.createElement("div");
+    const prices = portfolio.prices || {};
+    watch.innerHTML = `<div class="rlabel" style="margin:12px 0 2px">Activos para mirar</div><div class="watch">${Object.keys(NAMES).map((s) => {
+      const price = prices[MINTS[s]];
+      return `<button type="button" class="wrow" data-greet-watch="${s}">${mark(s)}<span class="w-main"><span class="w-name">${s}</span><br><span class="w-sub">${NAMES[s]} · token xStocks 1:1</span></span><span class="w-val"><span class="w-v num">${price ? fmtNum(price) : "···"}</span><br><span class="w-c mut">precio en vivo</span></span></button>`;
+    }).join("")}</div>`;
+    $("chat").appendChild(watch);
+    watch.querySelectorAll("[data-greet-watch]").forEach((b) => b.addEventListener("click", () => sendChat(`Invertí 10 USD en ${NAMES[b.getAttribute("data-greet-watch")!]}`)));
   }
 }
 
@@ -232,8 +530,7 @@ function showApp(email: string) {
   $("who").textContent = email;
   $("logout").classList.remove("hidden");
   $("authPanel").classList.add("hidden");
-  $("appPanel").classList.remove("hidden");
-  refresh();
+  refresh().then(() => greetEmpty());
   startPrices();
 }
 
@@ -259,7 +556,6 @@ on("login", "click", busy($("login") as HTMLButtonElement, "Entrando…", async 
     csrf = j.csrfToken;
     setMsg(msg, "", true);
     showApp(j.email);
-    addMsg("bot", "Hola. Decime qué querés hacer: por ejemplo, “Invertí 10 USD en el S&P 500”. Cotizo en vivo y nada se ejecuta sin tu confirmación.");
   } catch (e: any) { setMsg(msg, e.message); }
 }));
 on("logout", "click", async () => {
@@ -281,16 +577,27 @@ on("dep", "click", busy($("dep") as HTMLButtonElement, "Cargando…", async () =
   } catch (e: any) { addMsg("err", e.message); }
 }));
 on("send", "click", async () => {
-  const input = $("msg") as HTMLInputElement;
+  const input = $("msg") as HTMLTextAreaElement;
   const v = input.value;
   input.value = "";
   input.focus();
   await sendChat(v);
 });
-$("msg").addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") $("send").click(); });
-document.querySelectorAll("#quick button").forEach((b) => b.addEventListener("click", () => sendChat(b.getAttribute("data-q") || b.textContent || "")));
+$("msg").addEventListener("keydown", (e) => {
+  const ke = e as KeyboardEvent;
+  if (ke.key === "Enter" && !ke.shiftKey) { ke.preventDefault(); $("send").click(); }
+});
+document.querySelectorAll(".quick button").forEach((b) => b.addEventListener("click", () => {
+  const amt = b.getAttribute("data-amt");
+  const sym = portfolio?.positions?.[0]?.symbol || "SPYx";
+  const input = $("msg") as HTMLTextAreaElement;
+  input.value = `Invertí ${amt} USD en ${NAMES[sym]}`;
+  input.focus();
+}));
 
 renderTicker(null);
+renderPortfolio(null);
+renderHistory([]);
 api("GET", "/api/v1/me")
   .then((j) => { csrf = j.csrfToken; showApp(j.email); })
   .catch(() => {});
