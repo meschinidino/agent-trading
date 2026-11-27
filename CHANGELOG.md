@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2026-11-27
+
+### Added
+- Public landing page in `site/` (static, dependency-free, EN primary + ES toggle): real product screenshots, the confirmation-gate story, an honest paper-demo framing, and the BYOA/MCP door labeled as spec 07 / roadmap (not live). Ready to deploy on Cloudflare Pages (`wrangler.toml`, project `onda`); see `site/README.md`. All CTAs point to the live Azure app.
+
 ## [0.2.2] - 2026-11-27
 
 ### Changed

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onda — Your investing agent</title>
+<meta name="description" content="Onda is a natural-language investing agent. It proposes a tokenized-stock swap, you review the exact terms, and nothing executes until you slide to sign. Live demo: paper trading with real Jupiter prices.">
+<meta property="og:title" content="Onda — Your investing agent">
+<meta property="og:description" content="Say what you want to buy. Review the swap. Slide to sign — or nothing moves. Live demo: paper trading, real prices.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/confirm.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0b0d'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23c6f24e'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0a0b0d;--bg2:#0c0e11;--panel:#0e1013;--panel2:#14171c;--inset:#191d24;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--text:#f2f4f7;--muted:#9aa3ad;--faint:#828b95;--lime:#c6f24e;--lime-ink:#101604;--green:#3fce8f;--red:#f27676;--amber:#e3b341;--r:16px}
+*{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}a{color:inherit}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+header{position:sticky;top:0;z-index:20;background:rgba(10,11,13,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:16px;height:56px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;text-decoration:none}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--lime)}
+.pill{font-size:12px;color:var(--muted);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.bar nav{margin-left:auto;display:flex;align-items:center;gap:18px;font-size:13.5px;color:var(--muted)}
+.bar nav a{text-decoration:none}.bar nav a:hover{color:var(--text)}
+.lang{display:flex;border:1px solid var(--line2);border-radius:999px;overflow:hidden}
+.lang button{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;padding:5px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--panel2);color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--lime);color:var(--lime-ink);font-weight:700;text-decoration:none;border-radius:11px;padding:12px 20px;min-height:46px;font-size:14.5px;border:1px solid var(--lime)}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:var(--panel);color:var(--text);border-color:var(--line2)}
+.btn.small{padding:8px 14px;min-height:38px;font-size:13px}
+.hero{padding:72px 0 56px;display:grid;grid-template-columns:1.02fr .98fr;gap:48px;align-items:center}
+h1{font-size:clamp(38px,5.2vw,62px);line-height:1.04;letter-spacing:-.02em;font-weight:750}
+h1 em{font-style:normal;color:var(--lime)}
+.lede{margin-top:20px;font-size:18px;color:#cfd4da;max-width:34em}
+.cta{margin-top:28px;display:flex;gap:12px;flex-wrap:wrap}
+.fine{margin-top:14px;font-size:13px;color:var(--faint);max-width:36em}
+.frame{border:1px solid var(--line2);border-radius:var(--r);background:var(--panel);overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.frame .chrome{display:flex;gap:6px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.frame .chrome i{width:9px;height:9px;border-radius:50%;background:#2a2f36}
+.frame .chrome span{margin-left:8px;font-size:12px;color:var(--faint)}
+.frame img{display:block;width:100%;height:auto}
+.cap{font-size:12.5px;color:var(--faint);margin-top:10px}
+.strip{border-block:1px solid var(--line);background:var(--bg2)}
+.strip .wrap{display:flex;gap:28px;overflow-x:auto;padding:12px 24px;scrollbar-width:none}
+.tk{display:flex;gap:8px;white-space:nowrap;font-size:13px;color:var(--muted)}
+.tk b{color:var(--text)}
+section{padding:72px 0}
+h2{font-size:clamp(28px,3.4vw,40px);letter-spacing:-.02em;line-height:1.12;max-width:22em}
+.sub{margin-top:12px;color:var(--muted);font-size:16.5px;max-width:44em}
+.steps{margin-top:36px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.step img{width:100%;height:210px;object-fit:cover;object-position:top;display:block;border-bottom:1px solid var(--line)}
+.step div{padding:18px}
+.step h3,.card h3{font-size:16.5px;margin-bottom:6px}
+.step p,.card p{font-size:14px;color:var(--muted)}
+.n{font-size:12px;color:var(--lime);font-weight:700;letter-spacing:.08em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:36px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:24px}
+.states{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;font-size:12.5px}
+.states span{border:1px solid var(--line2);border-radius:999px;padding:5px 11px;color:#cfd4da}
+.states b{color:var(--lime);font-weight:400}
+table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--faint);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+td{color:#d6dbe1}td:first-child{color:var(--text);font-weight:600;white-space:nowrap}
+ul.tight{margin:10px 0 0 18px;color:var(--muted);font-size:14.5px}ul.tight li{margin:6px 0}
+.slider{margin-top:22px;background:var(--inset);border:1px solid var(--line2);border-radius:999px;height:56px;position:relative;overflow:hidden;touch-action:none}
+.slider .fill{position:absolute;inset:0;width:56px;background:rgba(198,242,78,.18)}
+.slider .thumb{position:absolute;top:4px;left:4px;width:48px;height:48px;border-radius:50%;background:var(--lime);color:var(--lime-ink);display:flex;align-items:center;justify-content:center;font-weight:800;cursor:grab;user-select:none}
+.slider .label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13.5px;color:var(--muted);pointer-events:none}
+.slider.done .label{color:var(--lime)}
+.notice{border:1px solid rgba(227,179,65,.4);background:rgba(227,179,65,.07);border-radius:var(--r);padding:22px 24px}
+.notice h3{color:var(--amber);font-size:16px;margin-bottom:6px}.notice p{color:#d8cfb8;font-size:14.5px}
+footer{border-top:1px solid var(--line);padding:36px 0 48px;color:var(--muted);font-size:13.5px}
+footer .wrap{display:flex;gap:24px;flex-wrap:wrap;justify-content:space-between}
+footer a{color:#cfd4da}
+.tablewrap{overflow-x:auto}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:44px}.steps,.grid2{grid-template-columns:1fr}.bar nav a.hide{display:none}.step img{height:auto;max-height:320px}.pill{display:none}.bar{gap:10px}.bar nav{gap:10px}table{min-width:560px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header><div class="wrap bar">
+<a class="brand" href="#"><span class="dot"></span>Onda</a>
+<span class="pill" data-en="Live demo · paper trading, real prices" data-es="Demo en vivo · paper trading, precios reales">Live demo · paper trading, real prices</span>
+<nav>
+<a class="hide" href="#how" data-en="How it works" data-es="Cómo funciona">How it works</a>
+<a class="hide" href="#gate" data-en="The gate" data-es="La compuerta">The gate</a>
+<a class="hide" href="#byoa" data-en="Bring your own agent" data-es="Traé tu propio agente">Bring your own agent</a>
+<span class="lang" role="group" aria-label="Language"><button id="len" aria-pressed="true">EN</button><button id="les" aria-pressed="false">ES</button></span>
+<a class="btn small" href="https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/" data-en="Open Onda" data-es="Abrir Onda">Open Onda</a>
+</nav></div></header>
+
+<main>
+<div class="wrap hero">
+<div>
+<h1 data-en="Say what to buy. Review the swap. Slide to sign — or nothing moves." data-es="Decí qué comprar. Revisá el swap. Deslizá para firmar — o no se mueve nada.">Say what to buy. Review the swap. <em>Slide to sign — or nothing moves.</em></h1>
+<p class="lede" data-en="Onda is a natural-language investing agent for tokenized stocks on Solana. You ask in plain words, it quotes a real USDC → SPYx, AAPLx or NVDAx swap, and the trade only exists if you confirm it in Onda. Reject it or let it expire and no money moves." data-es="Onda es un agente inversor en lenguaje natural para acciones tokenizadas en Solana. Pedís en palabras simples, cotiza un swap real USDC → SPYx, AAPLx o NVDAx, y la operación solo existe si la confirmás en Onda. Rechazala o dejala vencer y no se mueve plata.">Onda is a natural-language investing agent for tokenized stocks on Solana. You ask in plain words, it quotes a real USDC → SPYx, AAPLx or NVDAx swap, and the trade only exists if you confirm it in Onda. Reject it or let it expire and no money moves.</p>
+<div class="cta">
+<a class="btn" href="https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/" data-en="Try the live demo" data-es="Probar la demo en vivo">Try the live demo</a>
+<a class="btn ghost" href="https://github.com/meschinidino/agent-trading" data-en="Read the code" data-es="Ver el código">Read the code</a>
+</div>
+<p class="fine" data-en="Internal demo. Paper execution only — real Jupiter prices, simulated fills, no real funds, no keys, no custody. Not financial advice." data-es="Demo interna. Solo ejecución paper — precios reales de Jupiter, fills simulados, sin fondos reales, sin claves, sin custodia. No es asesoramiento financiero.">Internal demo. Paper execution only — real Jupiter prices, simulated fills, no real funds, no keys, no custody. Not financial advice.</p>
+</div>
+<div>
+<div class="frame"><div class="chrome"><i></i><i></i><i></i><span>onda — live app</span></div><img src="assets/confirm.png" alt="Onda confirmation screen showing a swap proposal with slide-to-sign" width="1315" height="1255"></div>
+<p class="cap" data-en="The real confirmation moment in the live app: the swap object, its minimum-out, and the slide-to-sign gesture. Screenshot from the production demo." data-es="El momento real de confirmación en la app en vivo: el objeto swap, su minimum-out y el gesto slide-to-sign. Captura de la demo en producción.">The real confirmation moment in the live app: the swap object, its minimum-out, and the slide-to-sign gesture. Screenshot from the production demo.</p>
+</div>
+</div>
+
+<div class="strip" aria-label="Markets"><div class="wrap">
+<span class="tk"><b>SPYx</b> S&amp;P 500 · 1:1</span><span class="tk"><b>AAPLx</b> Apple · 1:1</span><span class="tk"><b>NVDAx</b> Nvidia · 1:1</span><span class="tk"><b>USDC</b> Solana</span><span class="tk" data-en="Prices: live in the app, via Jupiter" data-es="Precios: en vivo en la app, vía Jupiter">Prices: live in the app, via Jupiter</span>
+</div></div>
+
+<section id="how"><div class="wrap">
+<h2 data-en="Three steps, all of them visible" data-es="Tres pasos, todos visibles">Three steps, all of them visible</h2>
+<p class="sub" data-en="No hidden execution and no “trust the model”. Every proposal shows the asset, the amount, the quote and the minimum you would receive — before anything is signed." data-es="Sin ejecución oculta y sin “confiá en el modelo”. Cada propuesta muestra el activo, el monto, la cotización y el mínimo que recibirías — antes de firmar nada.">No hidden execution and no “trust the model”. Every proposal shows the asset, the amount, the quote and the minimum you would receive — before anything is signed.</p>
+<div class="steps">
+<article class="step"><img src="assets/start.png" alt="Onda start screen with paper wallet and live watchlist" loading="lazy"><div><p class="n">01</p><h3 data-en="Ask in plain language" data-es="Pedí en lenguaje simple">Ask in plain language</h3><p data-en="“Invest 100 USD in the S&P 500.” Onda resolves the intent to SPYx and asks Jupiter for a live quote." data-es="“Invertí 100 USD en el S&P 500.” Onda resuelve la intención a SPYx y le pide una cotización en vivo a Jupiter.">“Invest 100 USD in the S&P 500.” Onda resolves the intent to SPYx and asks Jupiter for a live quote.</p></div></article>
+<article class="step"><img src="assets/confirm.png" alt="Onda swap confirmation with slide-to-sign" loading="lazy"><div><p class="n">02</p><h3 data-en="Review the exact swap" data-es="Revisá el swap exacto">Review the exact swap</h3><p data-en="One proposal at a time, with a single visible countdown. Slide to sign, reject it, or let it expire — all three are safe." data-es="Una propuesta por vez, con una única cuenta regresiva visible. Deslizá para firmar, rechazala o dejala vencer — las tres son seguras.">One proposal at a time, with a single visible countdown. Slide to sign, reject it, or let it expire — all three are safe.</p></div></article>
+<article class="step"><img src="assets/receipt.png" alt="Onda receipt and portfolio after a paper buy" loading="lazy"><div><p class="n">03</p><h3 data-en="Get a receipt, keep the record" data-es="Recibí el comprobante, queda el registro">Get a receipt, keep the record</h3><p data-en="Signed, rejected and expired proposals all land in your history, backed by an append-only audit log with a hash chain." data-es="Las propuestas firmadas, rechazadas y vencidas quedan en tu historial, respaldadas por un audit log append-only con hash chain.">Signed, rejected and expired proposals all land in your history, backed by an append-only audit log with a hash chain.</p></div></article>
+</div></div></section>
+
+<section id="gate" style="background:var(--bg2);border-block:1px solid var(--line)"><div class="wrap">
+<h2 data-en="The agent proposes. The backend disposes. You sign." data-es="El agente propone. El backend dispone. Vos firmás.">The agent proposes. The backend disposes. You sign.</h2>
+<p class="sub" data-en="The confirmation gate lives in the backend, not in the chat and not in the model. That is the whole thesis: an agent can operate a wallet usefully only when the system — not the LLM — controls the money." data-es="La compuerta de confirmación vive en el backend, no en el chat ni en el modelo. Esa es toda la tesis: un agente puede operar una wallet solo cuando el sistema — no el LLM — controla la plata.">The confirmation gate lives in the backend, not in the chat and not in the model. That is the whole thesis: an agent can operate a wallet usefully only when the system — not the LLM — controls the money.</p>
+<div class="grid2">
+<div class="card"><h3 data-en="How the gate behaves" data-es="Cómo se comporta la compuerta">How the gate behaves</h3>
+<div class="states"><span>proposed</span><b>→</b><span>pending_confirmation</span><b>→</b><span>executing</span><b>→</b><span>executed / failed</span></div>
+<ul class="tight">
+<li data-en="One pending confirmation per user — no stacked surprises." data-es="Una confirmación pendiente por usuario — sin sorpresas apiladas.">One pending confirmation per user — no stacked surprises.</li>
+<li data-en="A single TTL: the shorter of 60 seconds and the quote's own 30 seconds." data-es="Un único TTL: el menor entre 60 segundos y los 30 de la cotización.">A single TTL: the shorter of 60 seconds and the quote's own 30 seconds.</li>
+<li data-en="Demo limits shown in the app: US$ 25 per proposal, US$ 50 per day, paper." data-es="Límites de la demo en la app: US$ 25 por propuesta, US$ 50 por día, paper.">Demo limits shown in the app: <span class="num">US$ 25</span> per proposal, <span class="num">US$ 50</span> per day, paper.</li>
+<li data-en="A “yes” in a chat is never a signature. Signing only happens here, with your gesture." data-es="Un “sí” en un chat nunca es una firma. Firmar pasa solo acá, con tu gesto.">A “yes” in a chat is never a signature. Signing only happens here, with your gesture.</li>
+</ul></div>
+<div class="card"><h3 data-en="Try the gesture" data-es="Probá el gesto">Try the gesture</h3>
+<p data-en="This is a harmless toy version of the app's slide-to-sign. Drag it to the end — in the real demo, that is the moment a paper fill is recorded." data-es="Esta es una versión inofensiva del slide-to-sign de la app. Arrastralo hasta el final — en la demo real, ese es el momento en que se registra el fill paper.">This is a harmless toy version of the app's slide-to-sign. Drag it to the end — in the real demo, that is the moment a paper fill is recorded.</p>
+<div class="slider" id="slider" role="slider" aria-label="Slide to sign demo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="fill" id="fill"></div><div class="label" id="slabel" data-en="Slide to sign · demo only" data-es="Deslizá para firmar · solo demo">Slide to sign · demo only</div><div class="thumb" id="thumb">→</div></div>
+<p class="cap" data-en="Keyboard: focus the slider and use the arrow keys." data-es="Teclado: enfocá el slider y usá las flechas.">Keyboard: focus the slider and use the arrow keys.</p>
+</div></div></div></section>
+
+<section id="byoa"><div class="wrap">
+<h2 data-en="Two doors, one house" data-es="Dos puertas, una casa">Two doors, one house</h2>
+<p class="sub" data-en="Use Onda's own app today, or bring the agent you already have. The MCP door is specified in spec 07 and on the roadmap — it is not live yet, and we would rather say that plainly than fake a connect button." data-es="Usá hoy la app de Onda, o traé el agente que ya tenés. La puerta MCP está especificada en la spec 07 y en el roadmap — todavía no está en vivo, y preferimos decirlo claro antes que fingir un botón de conexión.">Use Onda's own app today, or bring the agent you already have. The MCP door is <strong>specified in spec 07 and on the roadmap — it is not live yet</strong>, and we would rather say that plainly than fake a connect button.</p>
+<div class="tablewrap"><table><thead><tr><th data-en="Door" data-es="Puerta">Door</th><th data-en="Who the agent is" data-es="Quién es el agente">Who the agent is</th><th data-en="Where you sign" data-es="Dónde firmás">Where you sign</th><th data-en="Status" data-es="Estado">Status</th></tr></thead>
+<tbody>
+<tr><td>Onda app</td><td data-en="Onda's built-in agent" data-es="El agente integrado de Onda">Onda's built-in agent</td><td data-en="In Onda, slide-to-sign" data-es="En Onda, slide-to-sign">In Onda, slide-to-sign</td><td><span class="num" style="color:var(--green)" data-en="Live demo" data-es="Demo en vivo">Live demo</span></td></tr>
+<tr><td data-en="Bring your own agent (MCP)" data-es="Traé tu propio agente (MCP)">Bring your own agent (MCP)</td><td>ChatGPT, Claude, Cursor, Claude Code — <span data-en="any MCP client" data-es="cualquier cliente MCP">any MCP client</span></td><td data-en="Still in Onda, slide-to-sign. Always." data-es="Siempre en Onda, slide-to-sign. Siempre.">Still in Onda, slide-to-sign. Always.</td><td><span style="color:var(--amber)" data-en="Spec 07 · roadmap" data-es="Spec 07 · roadmap">Spec 07 · roadmap</span></td></tr>
+</tbody></table></div>
+<p class="sub" style="margin-top:18px" data-en="The connect-once story, when it ships: you connect your agent to Onda once, it can quote and propose, and every operation still waits for your gesture in Onda. No MCP tool can confirm or execute — by design, there is no execute tool." data-es="La historia connect-once, cuando salga: conectás tu agente a Onda una vez, puede cotizar y proponer, y cada operación sigue esperando tu gesto en Onda. Ninguna tool MCP puede confirmar ni ejecutar — por diseño, no existe tool de ejecución.">The connect-once story, when it ships: you connect your agent to Onda once, it can quote and propose, and every operation still waits for your gesture in Onda. No MCP tool can confirm or execute — by design, there is no execute tool.</p>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap"><div class="notice">
+<h3 data-en="What this demo is — and is not" data-es="Qué es esta demo — y qué no">What this demo is — and is not</h3>
+<p data-en="Onda today is an internal demo with paper execution only. Prices, quotes and simulations are real and live from Jupiter; balances and fills are a clearly-labeled paper ledger. It does not trade real money, does not promise returns, and is not financial advice. Tokenized stocks carry risk and may not be available in your jurisdiction." data-es="Onda hoy es una demo interna solo con ejecución paper. Precios, cotizaciones y simulaciones son reales y en vivo desde Jupiter; saldos y fills son un ledger paper claramente etiquetado. No opera plata real, no promete retornos y no es asesoramiento financiero. Las acciones tokenizadas tienen riesgo y pueden no estar disponibles en tu jurisdicción.">Onda today is an internal demo with paper execution only. Prices, quotes and simulations are real and live from Jupiter; balances and fills are a clearly-labeled paper ledger. It does not trade real money, does not promise returns, and is not financial advice. Tokenized stocks carry risk and may not be available in your jurisdiction.</p>
+</div></div></section>
+</main>
+
+<footer><div class="wrap">
+<span><span class="dot" style="display:inline-block"></span> Onda — <span data-en="Your investing agent" data-es="Tu agente inversor">Your investing agent</span> · <span data-en="Apache-2.0" data-es="Apache-2.0">Apache-2.0</span></span>
+<span><a href="https://github.com/meschinidino/agent-trading">github.com/meschinidino/agent-trading</a> · <a href="https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/" data-en="Open the live demo" data-es="Abrir la demo en vivo">Open the live demo</a></span>
+</div></footer>
+
+<script>
+const $=s=>document.querySelector(s);
+function setLang(l){document.documentElement.lang=l;document.querySelectorAll('[data-en]').forEach(e=>{e.textContent=e.dataset[l]});$('#len').setAttribute('aria-pressed',l==='en');$('#les').setAttribute('aria-pressed',l==='es');try{localStorage.setItem('onda-lang',l)}catch(e){}}
+$('#len').onclick=()=>setLang('en');$('#les').onclick=()=>setLang('es');
+try{if(localStorage.getItem('onda-lang')==='es')setLang('es')}catch(e){}
+const sl=$('#slider'),th=$('#thumb'),fl=$('#fill'),lb=$('#slabel');let drag=false,x0=0;
+function setP(p){p=Math.max(0,Math.min(100,p));const w=sl.clientWidth-56;th.style.left=(4+w*p/100)+'px';fl.style.width=(56+w*p/100)+'px';sl.setAttribute('aria-valuenow',Math.round(p));if(p>=98){sl.classList.add('done');lb.textContent=document.documentElement.lang==='es'?'Firmado · paper — nada real se movió':'Signed · paper — nothing real moved'}else if(!drag){sl.classList.remove('done')}}
+th.addEventListener('pointerdown',e=>{drag=true;x0=e.clientX-th.offsetLeft;th.setPointerCapture(e.pointerId)});
+th.addEventListener('pointermove',e=>{if(drag)setP((e.clientX-sl.getBoundingClientRect().left-28)/(sl.clientWidth-56)*100)});
+th.addEventListener('pointerup',()=>{drag=false;if(+sl.getAttribute('aria-valuenow')<98)setP(0)});
+sl.addEventListener('keydown',e=>{let v=+sl.getAttribute('aria-valuenow');if(e.key==='ArrowRight')setP(v+10);if(e.key==='ArrowLeft')setP(v-10);if(v>=88&&e.key==='ArrowRight')setP(100)});
+</script>
+</body>
+</html>
