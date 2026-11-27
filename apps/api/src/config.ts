@@ -27,5 +27,5 @@ export const config = {
     return (["WAL", "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF"] as const).includes(v as any) ? (v as any) : "DELETE";
   })(),
   mcpTokenTtlDays: 90,
-  serverVersion: "0.5.2",
+  serverVersion: "0.5.3",
 };
