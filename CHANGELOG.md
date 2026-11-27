@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.1] - 2026-11-27
+
+### Changed
+- Landing copy: faster, shorter. Hero is now one idea at display size — "Your own personal broker." / "Tu broker personal." — with the mechanism + gate in a ≤22-word subline, one primary CTA above the fold (`Try the live demo`) and `Read the code` as a quiet text link. Below the fold compressed by ≥50% per section: 3 numbered one-liner steps with smaller screenshots, gate headline + 3 bullets, tighter two-doors table (MCP still `Spec · roadmap — not live`), and a 2-line paper-demo notice. Visible copy went from 645 to 270 words (text-node count on `site/index.html`, EN). Cold-dark terminal system unchanged; no new palette, serif, gradient text, or eyebrow chips.
+
 ## [0.3.0] - 2026-11-27
 
 ### Added
