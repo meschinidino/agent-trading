@@ -4,7 +4,7 @@
 
 Un agente inversor en lenguaje natural que compra acciones y ETFs tokenizados (xStocks) desde una wallet cripto detrás de un confirmation gate. Este repo es `agent-trading`; **Onda** es el nombre del producto.
 
-**Versión 0.5.1** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
+**Versión 0.5.2** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
 
 ## Preview en vivo
 
@@ -24,7 +24,7 @@ La tesis es una sola y a propósito angosta: un LLM puede operar una wallet real
 
 ## Estado
 
-Onda 0.5.1 es una demo interna live sobre infraestructura real, con ejecución paper:
+Onda 0.5.2 es una demo interna live sobre infraestructura real, con ejecución paper:
 
 - **UI Terminal amable** (la dirección de diseño aprobada): terminal oscura fría, confirmación como objeto de swap de Jupiter con slide-to-sign, layout con thread central, rail de portfolio y strip de precios en vivo. Reemplazó a la dirección anterior “editorial C” tras un teardown de productos comparables; C queda como antecedente histórico, no como dirección vigente.
 - **Datos de mercado reales, fills simulados.** Las quotes, los precios, las verificaciones con `simulateTransaction` y los balances on-chain de la agent wallet son reales y en vivo. Los USDC y xStocks paper son filas de un ledger local, rotuladas `mode: "paper"` end-to-end y nunca presentadas como balances on-chain.

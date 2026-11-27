@@ -17,6 +17,15 @@ export const config = {
   mcpEnabled: process.env.MCP_ENABLED === "true",
   publicBaseUrl: (process.env.PUBLIC_BASE_URL || "http://localhost:5173").replace(/\/$/, ""),
   mcpContractVersion: "1.0.0",
+  // DIN-25 (AGEN-28/AGEN-31): SQLite on Azure Files (SMB). busy_timeout must precede
+  // journal_mode; SQLITE_JOURNAL_MODE defaults to DELETE (rollback journal, no persistent
+  // -wal/-shm files, no WAL lock for a second revision to collide with). Local disk may
+  // opt back into WAL by setting SQLITE_JOURNAL_MODE=WAL. Invalid values fall back to DELETE.
+  sqliteBusyTimeoutMs: Number(process.env.SQLITE_BUSY_TIMEOUT_MS || 5000),
+  sqliteJournalMode: ((): "WAL" | "DELETE" | "TRUNCATE" | "PERSIST" | "MEMORY" | "OFF" => {
+    const v = String(process.env.SQLITE_JOURNAL_MODE || "DELETE").trim().toUpperCase();
+    return (["WAL", "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF"] as const).includes(v as any) ? (v as any) : "DELETE";
+  })(),
   mcpTokenTtlDays: 90,
-  serverVersion: "0.5.1",
+  serverVersion: "0.5.2",
 };
