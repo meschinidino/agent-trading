@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.2] - 2026-11-27
+
+### Fixed
+- Landing screenshots now match the site language. The EN landing no longer shows the app in Spanish ("Confirmá tu compra", "Deslizá para firmar", "Invertís/Recibís"): `site/assets/` now ships real captures per language (`en/` + `es/` — start, confirmation card, receipt) and the EN/ES toggle swaps the images with the copy. No pixel-edited translations; every screenshot is a straight render of the real app.
+
+### Added
+- English display seed in the app (`apps/web/src/i18n.ts`): all UI chrome in `apps/web` (header, auth, portfolio rail, confirmation card, receipt, prompts) renders in English via `?lang=en`, the header ES/EN switch, `localStorage onda-app-lang`, or an English browser locale; number formatting follows the locale. Scope is display strings only — the agent parser/chat still understands es-AR only: chat orders are always composed in Spanish, server agent prose is not machine-translated, and the English UI + landing caption disclose that. This is a UI seed, not English chat support.
+
+
 ## [0.3.1] - 2026-11-27
 
 ### Changed
