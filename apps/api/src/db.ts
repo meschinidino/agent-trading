@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { existsSync, mkdirSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import { dirname } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { config } from "./config.js";
@@ -16,8 +16,8 @@ export function normalizeJournalMode(raw: string | undefined, fallback: JournalM
 
 export class DbBusyError extends Error {
   readonly code = "DB_BUSY";
-  constructor(path: string, busyTimeoutMs: number, cause: unknown) {
-    super(`Database busy at ${path}: another connection held the write lock beyond busy_timeout=${busyTimeoutMs}ms. If a previous revision still runs, deactivate it and retry the boot.`);
+  constructor(path: string, busyTimeoutMs: number, cause: unknown, budgetMs?: number) {
+    super(`Database busy at ${path}: another connection held the write lock beyond ${budgetMs != null ? `the ${budgetMs}ms boot retry budget (busy_timeout=${busyTimeoutMs}ms per attempt)` : `busy_timeout=${busyTimeoutMs}ms`}. If a previous revision still runs, deactivate it and retry the boot.`);
     this.name = "DbBusyError";
     (this as any).cause = cause;
   }
@@ -43,69 +43,109 @@ function isNotDb(e: any): boolean {
   return e?.errcode === 26 || /not a database|file is encrypted|malformed|corrupt/i.test(msg);
 }
 
-// DIN-25: on Azure Files (SMB) a second revision asking for WAL while the first still
-// holds the WAL write lock fails with "locking protocol" (errcode 15/5). busy_timeout must
-// be set BEFORE journal_mode so the overlap waits instead of crash-looping.
-export function openDb(path: string, opts: { busyTimeoutMs?: number; journalMode?: JournalMode; timeoutMs?: number } = {}): DB {
+const sleepState = new Int32Array(new SharedArrayBuffer(4));
+function sleepSync(ms: number): void {
+  const t = Math.max(0, Math.floor(ms));
+  if (t > 0) Atomics.wait(sleepState, 0, 0, t);
+}
+
+// DIN-30: an EXISTING database (at least one table) already has a journal mode, recorded
+// in byte 18/19 of its file header (2 = WAL, 1 = rollback). Forcing a switch on it at
+// boot is what broke prod: against a live WAL connection (the old 0.5.0 revision, or its
+// -wal/-shm sidecars on the SMB share), "PRAGMA journal_mode=DELETE" fails with errcode 5
+// ("database is locked") instantly even under busy_timeout, because the switch needs an
+// EXCLUSIVE lock -- while a plain read on the same connection succeeds (reproduced
+// locally against both a live WAL connection and a BEGIN EXCLUSIVE holder). So:
+//   - existing DB (>= 1 table): open WITHOUT forcing journal_mode; log the detected mode.
+//   - new DB (no file, 0 bytes, or no tables yet): apply the configured mode
+//     (SQLITE_JOURNAL_MODE, default DELETE -- see config.ts).
+// busy_timeout is always set first. "Existing" is decided by the file header alone: a
+// WAL database keeps its newest pages in the -wal sidecar, which only a real connection
+// sees merged -- recovering that state just to classify the file would demand exactly
+// the locks this function exists to avoid.
+function headerJournalMode(path: string): string | null {
+  try {
+    const head = readFileSync(path).subarray(0, 20);
+    if (head.length < 20) return null;
+    return head[18] === 2 ? "wal" : head[18] === 1 ? "delete" : null;
+  } catch { return null; }
+}
+
+export function openDb(path: string, opts: { busyTimeoutMs?: number; journalMode?: JournalMode; timeoutMs?: number; busyBudgetMs?: number } = {}): DB {
   const busyTimeoutMs = Math.max(0, Math.floor(opts.busyTimeoutMs ?? opts.timeoutMs ?? config.sqliteBusyTimeoutMs));
-  const journalMode = normalizeJournalMode(opts.journalMode ?? config.sqliteJournalMode);
-  if (path !== ":memory:") {
+  const budgetMs = Math.max(0, Math.floor(opts.busyBudgetMs ?? (config as any).sqliteBootBudgetMs ?? 30000));
+  const journalMode = normalizeJournalMode(opts.journalMode ?? config.sqliteJournalMode, "DELETE");
+  const isMemory = path === ":memory:";
+  if (!isMemory) {
     mkdirSync(dirname(path), { recursive: true });
-    // Empty/invalid-seed recovery (AGEN-28): a pre-existing 0-byte file on SMB can make
-    // node:sqlite fail at journal_mode=WAL and every failed boot recreates it empty.
-    // A 0-byte file can never contain a table, so unlinking it loses no data.
-    // NEVER unlink a non-empty file (see DbCorruptError above).
+    // Empty/invalid-seed recovery (AGEN-28): a pre-existing 0-byte file can never contain
+    // a table, so unlinking it loses no data. NEVER unlink a non-empty file (see
+    // DbCorruptError above) and never touch -wal/-shm sidecars.
     if (existsSync(path) && statSync(path).size === 0) {
       console.warn(`[db] WARNING: removing 0-byte database file at ${path} (size=0) and recreating it cleanly. No data could exist in an empty file.`);
       unlinkSync(path);
     }
   }
+  const headerMode = isMemory ? null : headerJournalMode(path);
+  const isExisting = headerMode !== null;
+
   const attempt = (): DB => {
     const db = new DatabaseSync(path);
     try {
       db.exec(`PRAGMA busy_timeout=${busyTimeoutMs};`);
-      db.exec(`PRAGMA journal_mode=${journalMode};`);
-      db.exec(`PRAGMA foreign_keys=ON;`);
-    } catch (e) {
-      try { db.close(); } catch {}
-      throw e;
-    }
+      if (isExisting) {
+        // Existing DB: never force a journal_mode switch (DIN-30, see note above).
+        // Confirm the live mode and log it; a read-only pragma needs no exclusive lock.
+        const row = db.prepare("PRAGMA journal_mode").get() as any;
+        const detected = String(row?.journal_mode ?? headerMode ?? "unknown").toLowerCase();
+        console.log(`[db] existing database at ${path}: respecting journal_mode=${detected} (configured SQLITE_JOURNAL_MODE=${journalMode} applies only to new databases)`);
+      } else {
+        db.exec(`PRAGMA journal_mode=${journalMode};`);
+      }
+      db.exec("PRAGMA foreign_keys=ON;");
+    } catch (e) { try { db.close(); } catch {} throw e; }
     return db;
   };
-  let db: DB;
-  try {
-    db = attempt();
-  } catch (e: any) {
-    if (path !== ":memory:" && isNotDb(e)) {
-      const size = existsSync(path) ? statSync(path).size : 0;
-      if (size === 0) {
-        // Defensive: file became/was 0-byte despite the pre-check above.
-        console.warn(`[db] WARNING: removing 0-byte database file at ${path} (size=0) after open failure (${e.message}) and recreating it cleanly.`);
-        try { unlinkSync(path); } catch {}
-        db = attempt();
-      } else {
+
+  const startedAt = Date.now();
+  let lastBusy: unknown = null;
+  // Bounded, jittered retry around the whole open+init sequence: a stale SMB lock or a
+  // dying old revision can outlive one busy_timeout window (AGEN-34: locked >3 min while
+  // the new revision was ALONE on the share). DIN-25 deliberately had no in-process retry;
+  // DIN-30 reverses that within a ~30s budget sized to ride out a revision transition --
+  // the container has no earlier readiness signal: the process only listens after openDb
+  // returns (src/index.ts), so retries inside openDb are the readiness budget.
+  // init/migrations are idempotent, so re-running them after a partial attempt converges.
+  for (let attemptNo = 1; ; attemptNo++) {
+    try {
+      const db = attempt();
+      try { initSchema(db); return db; }
+      catch (e) { try { db.close(); } catch {} throw e; }
+    } catch (e: any) {
+      if (!isMemory && isNotDb(e)) {
+        const size = existsSync(path) ? statSync(path).size : 0;
+        if (size === 0) {
+          // Defensive: file became/was 0-byte despite the pre-check above.
+          console.warn(`[db] WARNING: removing 0-byte database file at ${path} (size=0) after open failure (${e.message}) and recreating it cleanly.`);
+          try { unlinkSync(path); } catch {}
+          continue;
+        }
         throw new DbCorruptError(path, size, e);
       }
-    } else if (isBusy(e)) {
-      // busy_timeout already waited inside SQLite; a still-busy DB is a typed, diagnosable
-      // failure for the caller/process supervisor, not a silent retry loop in-process.
-      throw new DbBusyError(path, busyTimeoutMs, e);
-    } else throw e;
+      if (isBusy(e)) {
+        lastBusy = e;
+        const elapsed = Date.now() - startedAt;
+        if (elapsed >= budgetMs) throw new DbBusyError(path, busyTimeoutMs, lastBusy, budgetMs);
+        const cap = Math.min(250 * 2 ** (attemptNo - 1), 2000);
+        const delay = cap / 2 + Math.random() * (cap / 2);
+        console.warn(`[db] database busy at ${path} (attempt ${attemptNo}, elapsed ${elapsed}ms); retrying in ${Math.round(delay)}ms within the ${budgetMs}ms boot budget`);
+        sleepSync(Math.min(delay, budgetMs - elapsed));
+        continue;
+      }
+      throw e;
+    }
   }
-  try {
-    initSchema(db);
-  } catch (e: any) {
-    // journal_mode=WAL is a no-op when already in WAL, so lock contention from an
-    // overlapping revision first surfaces here, at the schema write — busy_timeout has
-    // already waited inside SQLite. Convert to the typed error instead of leaking a
-    // raw "database is locked" (AGEN-31 crash-loop shape).
-    try { db.close(); } catch {}
-    if (isBusy(e)) throw new DbBusyError(path, busyTimeoutMs, e);
-    throw e;
-  }
-  return db;
 }
-
 function initSchema(db: DB): void {
   // Fast path: CREATE TABLE IF NOT EXISTS on an existing table takes no write lock, so
   // when the schema is already complete (the overlapping-revision case) boot needs no
