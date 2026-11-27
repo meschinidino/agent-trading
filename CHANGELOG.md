@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-27
+
 ### Changed
 - Landing con demo guiada del flujo real (refs DIN-24).
 
