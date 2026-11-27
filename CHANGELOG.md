@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-27
+
+### Fixed
+- **Boot de SQLite robusto sobre Azure Files / SMB (refs DIN-25):** `openDb` (apps/api/src/db.ts) ahora aplica `PRAGMA busy_timeout` (default 5000 ms, `SQLITE_BUSY_TIMEOUT_MS`) ANTES de `journal_mode`, así un solape de revisiones espera en vez de crash-loopear; un archivo preexistente de 0 bytes se borra y se recrea con un warning claro (path + tamaño), y un archivo no vacío que no abre NUNCA se borra: el boot falla con el error original envuelto en `DbCorruptError` (la seguridad de los datos manda sobre la liveness). Un lock que sobrevive al timeout falla con `DbBusyError` tipado. La inicialización de schema ya era idempotente (`IF NOT EXISTS` + chequeo de columna) y queda así para que un reintento tras init parcial converja. Nuevos tests: boot con archivo 0-byte (warning capturado), datos válidos que sobreviven un reopen sin unlink, archivo corrupto no vacío intacto, y solape con write lock sostenido que libera dentro del timeout y abre.
+- **Journal mode seguro en SMB (refs DIN-25):** el default pasa de WAL a `DELETE` vía `SQLITE_JOURNAL_MODE` (configurable; `DELETE`/`TRUNCATE`/`WAL`/etc., inválido → `DELETE`). En Azure Files el WAL dejó dos incidentes (AGEN-28: archivo 0-byte que no abre en WAL sobre SMB; AGEN-31: segunda revisión con `locking protocol` porque la vieja retenía el lock WAL). `DELETE` usa journal de rollback efímero, sin archivos `-wal`/`-shm` persistentes sobre SMB; el costo (un writer por vez, lecturas bloqueadas durante un write) es aceptable para esta app single-replica/paper. En disco local confiable se puede volver a WAL con `SQLITE_JOURNAL_MODE=WAL`.
+
 ## [0.5.1] - 2026-11-27
 
 ### Changed
