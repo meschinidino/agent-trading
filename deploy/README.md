@@ -34,7 +34,7 @@ az storage account delete -g rg-agent-trading-preview -n ondaagentdata --yes
 az monitor log-analytics workspace delete -g rg-agent-trading-preview -n onda-logs --force true --yes
 ```
 
-Full teardown including the static mockup — only on Dino's explicit order:
+Full teardown including the static mockup — only on the project owner's explicit order:
 
 ```bash
 az group delete -n rg-agent-trading-preview --yes

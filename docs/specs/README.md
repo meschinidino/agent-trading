@@ -16,7 +16,8 @@ La demo prueba una sola tesis: un LLM puede operar una wallet de forma útil si 
 | [03-agent-flows.md](03-agent-flows.md) | Comportamiento del agente (Eve): intent parsing, alias map, contrato de tools |
 | [04-confirmation-gate.md](04-confirmation-gate.md) | El gate de validación: estados, TTL, idempotency, copy UX, audit log |
 | [05-backend-api.md](05-backend-api.md) | Contrato HTTP, modelo de datos y auth |
-| [06-roadmap-risks.md](06-roadmap-risks.md) | Fases 0–3, riesgos y preguntas abiertas para Dino |
+| [06-roadmap-risks.md](06-roadmap-risks.md) | Fases 0–3, riesgos y preguntas abiertas para el titular del proyecto |
+| [07-onda-mcp.md](07-onda-mcp.md) | Onda MCP (fase 1.2): BYOA — agentes externos (ChatGPT/Claude/Cursor) vía MCP remoto, firma siempre en Onda |
 
 ## Alcance
 
@@ -36,7 +37,7 @@ flowchart TD
     U -->|"Confirmar"| UI
     UI -->|"POST /confirmations/:id/confirm"| BE
     BE -->|"solo si confirmed"| WAL["Wallet layer"]
-    WAL -->|"demo"| MCP["Phantom MCP<br/>agent wallet (local session)"]
+    WAL -->|"demo"| MCP["Phantom MCP — signing service (operator-hosted)<br/>agent wallet"]
     WAL -.->|"fase 2"| CONN["Phantom Connect<br/>embedded wallets por usuario"]
     MCP --> SWAP["Swap execution"]
     CONN -.-> SWAP
@@ -53,6 +54,7 @@ flowchart TD
 2. **Phantom MCP para la demo, Phantom Connect para escalar.** El MCP corre con session local y una sola agent wallet; no es multi-tenant ([01-wallet.md](01-wallet.md)).
 3. **Jupiter Swap API v2 es el ejecutor — cotiza, arma, simula y, con el flag prendido, ejecuta — y Phantom `buy` es solo comparación de quote, nunca ejecutor**, porque `buy` es opaco en slippage y no acepta minimum-out explícito ([02-swaps-xstocks.md](02-swaps-xstocks.md)).
 4. **Eve (vercel/eve) como agent framework**, estructura filesystem-first en `agent/` ([03-agent-flows.md](03-agent-flows.md)).
+5. **Dos puertas, una casa (fase 1.2, especificado):** además del harness, Onda expone un servidor MCP remoto para agentes externos del usuario; las tools MCP reutilizan los mismos servicios y el gate, y la firma sigue siendo solo en la web de Onda ([07-onda-mcp.md](07-onda-mcp.md)).
 
 ## Fuentes (hechos verificados por el Captain, 2026-11-27)
 

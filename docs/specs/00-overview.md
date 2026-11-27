@@ -22,7 +22,7 @@ Invertir en activos tokenizados (xStocks) desde una wallet cripto exige saber qu
 
 ### Usuarios
 
-- **Usuario de la demo (MVP):** Dino como operador único. Escribe intenciones en español rioplatense, confirma o rechaza, y observa el resultado. En Track A el resultado es simulado a quote y queda registrado en el ledger paper ([01-wallet.md](01-wallet.md), [05-backend-api.md](05-backend-api.md)).
+- **Usuario de la demo (MVP):** El operador del proyecto como usuario único. Escribe intenciones en español rioplatense, confirma o rechaza, y observa el resultado. En Track A el resultado es simulado a quote y queda registrado en el ledger paper ([01-wallet.md](01-wallet.md), [05-backend-api.md](05-backend-api.md)).
 - **Usuario final (fase 2):** persona sin experiencia cripto que se registra con Google/Apple, recibe una embedded wallet, fondea y invierte en lenguaje natural. No ve mints ni direcciones salvo que las pida.
 - **Operador del sistema:** quien audita confirmations, orders y executions cuando algo sale mal. Lo atiende el audit log de [04-confirmation-gate.md](04-confirmation-gate.md).
 
@@ -32,7 +32,7 @@ La demo tiene dos criterios de éxito separados y no intercambiables. Confundirl
 
 **Demo interna Track A (paper, sin fondeo mainnet).** Saldo paper de referencia: **100 USDC paper**, acreditados solo en el ledger paper ([05-backend-api.md](05-backend-api.md)), sin relación con un saldo on-chain. En una sesión en vivo, el operador puede: (1) preguntar su saldo y posiciones, distinguiendo saldo on-chain real de posiciones paper; (2) decir "Invertí 10 USD en el S&P 500"; (3) ver la propuesta con activo, monto, quote, slippage en bps, minimum-out y vencimiento único en vivo; (4) confirmar y obtener un **monto simulado a quote** acreditado en el ledger paper solo si la simulación especificada en [01-wallet.md](01-wallet.md) pasa, con la palabra "simulado" visible y sin link a explorer; (5) rechazar otra propuesta y verificar que no se acreditó nada. Ningún paso exige ni produce una transacción real en Solana.
 
-**Demo con firma real (flag de ejecución encendido, con fondos).** Solo aplica cuando Dino prende explícitamente el flag de ejecución y fondea la wallet ([01-wallet.md](01-wallet.md)). En ese modo, el operador confirma y obtiene una transacción ejecutada por Jupiter y confirmada en Solana con su signature verificable, con reconciliación post-fill contra el minimum-out confirmado ([02-swaps-xstocks.md](02-swaps-xstocks.md)). Este criterio no lo cumple Track A ni ninguna simulación.
+**Demo con firma real (flag de ejecución encendido, con fondos).** Solo aplica cuando el operador prende explícitamente el flag de ejecución y fondea la wallet ([01-wallet.md](01-wallet.md)). En ese modo, el operador confirma y obtiene una transacción ejecutada por Jupiter y confirmada en Solana con su signature verificable, con reconciliación post-fill contra el minimum-out confirmado ([02-swaps-xstocks.md](02-swaps-xstocks.md)). Este criterio no lo cumple Track A ni ninguna simulación.
 
 ### Non-goals (MVP)
 
@@ -45,7 +45,7 @@ La demo tiene dos criterios de éxito separados y no intercambiables. Confundirl
 
 ### Supuestos
 
-1. La agent wallet de la demo **no está fondeada en mainnet** y opera en modo Track A. El saldo de 100 USDC es paper, definido en el ledger paper, y ningún ejemplo de este paquete supone otro saldo. La ejecución real exige fondeo previo y decisión explícita de Dino.
+1. La agent wallet de la demo **no está fondeada en mainnet** y opera en modo Track A. El saldo de 100 USDC es paper, definido en el ledger paper, y ningún ejemplo de este paquete supone otro saldo. La ejecución real exige fondeo previo y decisión explícita del operador.
 2. La elegibilidad para operar xStocks desde la jurisdicción del operador **no es un supuesto**: es un riesgo OPEN con responsable y verificación pendiente ([06-roadmap-risks.md](06-roadmap-risks.md)). Hasta verificarla, la demo es interna.
 3. El LLM entiende español rioplatense coloquial ("invertí", "metele", "comprame") sin fine-tuning, validado por el intent parsing de [03-agent-flows.md](03-agent-flows.md). La salida del LLM es una propuesta: la validación del backend es la autoridad ([03-agent-flows.md](03-agent-flows.md)).
 4. Phantom MCP, Phantom Connect, Jupiter y Eve mantienen las APIs descriptas en las fuentes del [README.md](README.md) durante el desarrollo de la demo.
