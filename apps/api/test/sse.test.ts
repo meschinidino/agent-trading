@@ -75,10 +75,10 @@ describe("SSE /api/v1/events (DIN-35)", () => {
     offA(); offB();
   });
 
-  it("quoteSnapshot usa el registry (3 símbolos, fail-soft)", async () => {
+  it("quoteSnapshot usa el registry y los precios de Jupiter del fixture", async () => {
     const items = await quoteSnapshot();
     expect(items.map((x) => x.symbol)).toEqual(["SPYx", "AAPLx", "NVDAx"]);
-    for (const i of items) expect(typeof i.asOf).toBe("string");
+    for (const i of items) expect(i).toMatchObject({ asOf: expect.any(String), priceUsd: 101.25, priceChange24hPct: 2.5 });
   });
 
   it("expireStaleConfirmations marca expired y emite solo al dueño", async () => {

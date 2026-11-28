@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-28
+
+### Added
+- **CI para PRs y pushes a `main` (refs DIN-38):** instalación con lockfile congelado y caché del store de pnpm, build, tests y render del overlay kind. No despliega ni arranca un clúster.
+
+### Fixed
+- Los tests de MCP y SSE usan fixtures para Jupiter y Solana RPC en lugar de esperar a los servicios en vivo. Se mantienen los clientes HTTP reales contra el servidor local.
+
 ## [0.6.2] - 2026-11-28
 
 ### Fixed

@@ -4,7 +4,7 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Repository version: 0.6.2** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Repository version: 0.6.3** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
@@ -180,7 +180,7 @@ Honest limits: paper execution only, MCP live only as an internal demo on the ra
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: small, reviewable PRs against `main`; every PR needs `pnpm build` and `pnpm test` green, carries its VERSION + CHANGELOG paper trail, and no PR merges without the project owner's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: small, reviewable PRs against `main`; CI builds, runs tests and renders the kind overlay without deploying. Every PR carries its VERSION + CHANGELOG paper trail, and no PR merges without the project owner's explicit word. Specs first for anything money-adjacent: the confirmation gate, ledger and execution-flag behavior are specified in `docs/specs/` and changes there are reviewed before code follows.
 
 ## License
 

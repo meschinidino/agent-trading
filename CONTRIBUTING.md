@@ -5,12 +5,13 @@ Small, reviewable PRs against `main`. This file is the short path; the README's 
 ## Before you open a PR
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
 pnpm test
+kubectl kustomize deploy/k8s/overlays/kind > /dev/null
 ```
 
-All three must pass. There is no separate lint step today.
+GitHub Actions runs these checks for PRs targeting `main` and for pushes to `main`. There is no separate lint step today. The API tests use Jupiter and Solana RPC fixtures and real loopback HTTP for MCP and SSE; `pnpm e2e` still uses live services. The render check catches Kustomize errors without Docker or a cluster. Run the [kind smoke test](deploy/k8s/README.md#ensayo-reproducible) manually to check behavior in a cluster.
 
 ## Rules of the house
 

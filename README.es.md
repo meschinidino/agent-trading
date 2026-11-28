@@ -4,7 +4,7 @@
 
 Un agente inversor en lenguaje natural que compra acciones y ETFs tokenizados (xStocks) desde una wallet cripto detrás de un confirmation gate. Este repo es `agent-trading`; **Onda** es el nombre del producto.
 
-**Versión del repo: 0.6.2** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
+**Versión del repo: 0.6.3** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
 
 ## Preview en vivo
 
@@ -41,7 +41,7 @@ Desde un clone fresco, corré todo desde la raíz del repo:
 corepack enable   # provee el pnpm 12.11.2 pineado (saltealo si ya tenés pnpm 12)
 pnpm install      # los build scripts nativos de argon2/bufferutil/utf-8-validate están allow-listeados en pnpm-workspace.yaml
 pnpm build        # compila apps/api (tsc) y apps/web (vite)
-pnpm test         # 29 tests (apps/api, vitest)
+pnpm test         # 42 tests (apps/api, vitest)
 ```
 
 La API **no** carga `.env` automáticamente (no hay dependencia dotenv), así que exportá las variables en tu shell. Toda variable de [`.env.example`](.env.example) tiene un default de demo en `apps/api/src/config.ts`, pero siempre seteá un `SESSION_SECRET` real:
@@ -180,7 +180,7 @@ Límites honestos: ejecución paper solamente, MCP en vivo solo como demo intern
 
 ## Contribuir
 
-Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (en inglés). En corto: PRs chicos y revisables contra `main`; todo PR necesita `pnpm build` y `pnpm test` en verde, lleva su paper trail de VERSION + CHANGELOG, y ningún PR se mergea sin la palabra explícita del titular del proyecto. Specs primero para todo lo que toque dinero: el confirmation gate, el ledger y el comportamiento del flag de ejecución están especificados en `docs/specs/` y los cambios ahí se revisan antes de que siga el código.
+Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (en inglés). En corto: PRs chicos y revisables contra `main`; CI compila, corre los tests y renderiza el overlay kind sin desplegar. Todo PR actualiza VERSION y CHANGELOG, y ningún PR se mergea sin la palabra explícita del titular del proyecto. Specs primero para todo lo que toque dinero: el confirmation gate, el ledger y el comportamiento del flag de ejecución están especificados en `docs/specs/` y los cambios ahí se revisan antes de que siga el código.
 
 ## Licencia
 
