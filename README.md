@@ -4,17 +4,17 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Version 0.6.0** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Repository version: 0.6.2** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
-The product is **live as “Onda — Tu agente inversor”** at https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps, resource group `rg-agent-trading-preview`, roughly USD 20–30/month).
+The product is **live as “Onda — Tu agente inversor”** at https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps).
 
 What works there today: register and sign in, create a paper wallet and fund it, get live Jupiter quotes, review a swap proposal and sign paper buys with a slide-to-sign gesture, and see portfolio, per-asset detail sheets (live Jupiter data plus sourced IPO/inception, issuer, sector info — also exposed read-only to agents via the MCP tool `onda_get_asset_info`), and transaction history. The agentic flow was proven end-to-end on the public URL: register → wallet → deposit → buy SPYx (paper) → portfolio. The Onda MCP server is also enabled on this preview as an internal demo: in the app, open **Settings → Agentes externos (MCP)**, create a token, and point any MCP client at `https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp` with `Authorization: Bearer <token>` (7 tools; signing always in Onda, proven end-to-end with a real MCP client: quote → propose → pending → physical slide-to-sign → executed paper).
 
 A static design mockup is also live at https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — that is a **design mockup only**, not the app.
 
-What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through the Phantom MCP signing service (operator-hosted), the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`), and SSE live updates ship in this release in code (they take effect on the live preview at the next app deploy).
+What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through the Phantom MCP signing service (operator-hosted), and the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`).
 
 ## The idea
 
@@ -140,14 +140,15 @@ Onda runs on Azure Container Apps in resource group `rg-agent-trading-preview` (
 - One container from [`deploy/Dockerfile`](deploy/Dockerfile): the Fastify API serves the Vite web build same-origin when `SERVE_WEB=true`.
 - SQLite persists on an Azure Files share at `DATABASE_PATH=/data/app.sqlite`.
 - Runtime flags: `EXECUTION_ENABLED=false`, `EXECUTION_MODE=paper`, `AGENT_MODE=parser`; `SESSION_SECRET` exists only as a Container Apps secret, never in the repo.
-- Estimated cost: roughly **USD 20–30/month** (Container Apps + ACR Basic + Azure Files + Log Analytics).
 
 The full runbook — resources, build, and teardown commands, including the variant that deletes only the app and preserves the static mockup's resource group — is in [`deploy/README.md`](deploy/README.md).
+
+[Run Onda on local Kubernetes with kind](deploy/k8s/README.md) using the same Dockerfile and synthetic data. This does not change the Container Apps preview or validate AKS.
 
 ## Roadmap
 
 - **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
-- **Phase 1.1 — SSE live updates done in code (v0.6.0, pending the next app deploy):** authenticated `GET /api/v1/events` (session cookie, heartbeat, per-user isolation) streams Jupiter quote ticks every 12s (backed by the existing 60s Jupiter price cache), confirmation state changes for the owner only, and a portfolio-changed signal that makes the UI refetch the authoritative snapshot; the web client reconnects with backoff and degrades to the previous 30s manual refresh when SSE is down. Still pending in 1.1: real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
+- **Phase 1.1 — SSE live updates enabled on the preview (v0.6.0):** authenticated `GET /api/v1/events` (session cookie, heartbeat, per-user isolation) streams Jupiter quote ticks every 12s (backed by the existing 60s Jupiter price cache), confirmation state changes for the owner only, and a portfolio-changed signal that makes the UI refetch the authoritative snapshot; the web client reconnects with backoff and degrades to the previous 30s manual refresh when SSE is down. Still pending in 1.1: real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
 - **Phase 1.2 — Onda MCP (live on the Azure preview as an internal demo since 2026-11-27):** remote MCP server (Streamable HTTP at `/mcp`, 7 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; enabled in production with `MCP_ENABLED=true` and proven end-to-end with a real MCP client (quote → propose → pending → physical slide-to-sign → executed paper). Still an internal demo (H11 open) on the raw Azure URL: no custom domain yet (Q-M3) and no public onboarding; OAuth 2.1 is phase 1.3. Local run: [Run the Onda MCP locally](#run-the-onda-mcp-locally). See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
 - **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.

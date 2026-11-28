@@ -1,5 +1,3 @@
-# Non-secret config only — parity with the live Container Apps template.
-# SESSION_SECRET never goes here (or anywhere in git): see deployment.yaml secretKeyRef.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,9 +11,6 @@ data:
   EXECUTION_MODE: "paper"
   AGENT_MODE: "parser"
   MCP_ENABLED: "true"
-  # Changes vs Container Apps: the Azure hostname goes away on AKS.
-  # Replace with the ingress LB DNS label once the public IP exists.
-  PUBLIC_BASE_URL: "https://onda-demo.eastus.cloudapp.azure.com"
   SQLITE_BUSY_TIMEOUT_MS: "5000"
   SQLITE_BOOT_BUDGET_MS: "30000"
   SQLITE_JOURNAL_MODE: "DELETE"
