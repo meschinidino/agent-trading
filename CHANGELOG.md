@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-28
+
+### Added
+- **Ensayo de transferencia aislado en Solana devnet (refs DIN-40):** `tools/devnet-rehearsal/` es una tool de test fuera del monorepo, sin dependencias de la app. Verifica el genesis exacto de devnet, fondea con `requestAirdrop` si el RPC lo permite, exige una aprobación de un solo uso con vencimiento y firma una transferencia de 0,001 SOL de prueba con una clave efímera generada en memoria. Genera recibo solo con la transacción `finalized`: mismos bytes, `meta.err = null`, delta del destinatario y débito del emisor iguales a lo aprobado. Si el envío queda incierto no reenvía, y solo consulta por la signature local. No usa la app, Phantom, Jupiter ni producción, y no reclama firma humana de wallet. 12 tests con fixtures. **El RPC público de devnet ya no sirve airdrops (HTTP 410 en 2026-11-28), así que la evidencia live de depósito y transferencia finalizada queda pendiente**; no se inventó.
+
 ## [0.7.0] - 2026-11-28
 
 ### Added
