@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: onda
+resources:
+  - ../../base
+  - pvc.yaml
+images:
+  - name: onda
+    newTag: kind
+patches:
+  - target:
+      kind: Deployment
+      name: onda
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: onda
+      spec:
+        template:
+          spec:
+            containers:
+              - name: onda
+                imagePullPolicy: Never
+  - target:
+      kind: ConfigMap
+      name: onda-config
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: onda-config
+      data:
+        PUBLIC_BASE_URL: "http://127.0.0.1:18080"
+        SQLITE_JOURNAL_MODE: "WAL"

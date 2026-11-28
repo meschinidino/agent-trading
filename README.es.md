@@ -4,17 +4,17 @@
 
 Un agente inversor en lenguaje natural que compra acciones y ETFs tokenizados (xStocks) desde una wallet cripto detrás de un confirmation gate. Este repo es `agent-trading`; **Onda** es el nombre del producto.
 
-**Versión 0.6.0** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
+**Versión del repo: 0.6.2** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
 
 ## Preview en vivo
 
-El producto está **live como “Onda — Tu agente inversor”** en https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps, resource group `rg-agent-trading-preview`, ~USD 20–30/mes).
+El producto está **live como “Onda — Tu agente inversor”** en https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps).
 
 Qué funciona ahí hoy: registrarte e iniciar sesión, crear una paper wallet y cargarla, quotes reales de Jupiter en vivo, revisar la propuesta de swap y firmar compras paper con slide-to-sign, y ver portfolio, la ficha por activo (datos en vivo de Jupiter más IPO/inception, emisor y sector con fuente — también expuesta read-only a agentes vía la tool MCP `onda_get_asset_info`) e historial. El flujo agéntico se probó end-to-end sobre la URL pública: register → wallet → depósito → compra paper de SPYx → portfolio. El servidor MCP de Onda también está prendido en este preview como demo interna: en la app, abrí **Settings → Agentes externos (MCP)**, creá un token y apuntá cualquier cliente MCP a `https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp` con `Authorization: Bearer <token>` (7 tools; la firma siempre ocurre en Onda, probado end-to-end con un cliente MCP real: quote → propose → pending → slide-to-sign físico → ejecutado paper).
 
 También vive un mockup estático de diseño en https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — es **solo un mockup de diseño**, no la app.
 
-Lo que el preview en vivo deliberadamente **no** hace: la ejecución real está apagada (`EXECUTION_ENABLED=false`), la firma real sigue corriendo vía Phantom MCP — servicio de firma (host del operador), el modo Eve/LLM está apagado sin keys de modelo (`AGENT_MODE=parser`), y los updates en vivo por SSE llegan en código en esta release (toman efecto en el preview en vivo con el próximo deploy de la app).
+Lo que el preview en vivo deliberadamente **no** hace: la ejecución real está apagada (`EXECUTION_ENABLED=false`), la firma real sigue corriendo vía Phantom MCP — servicio de firma (host del operador), y el modo Eve/LLM está apagado sin keys de modelo (`AGENT_MODE=parser`).
 
 ## La idea
 
@@ -140,14 +140,15 @@ Onda corre en Azure Container Apps en el resource group `rg-agent-trading-previe
 - Un solo container desde [`deploy/Dockerfile`](deploy/Dockerfile): la API Fastify sirve el build web de Vite en el mismo origen cuando `SERVE_WEB=true`.
 - SQLite persiste en un share de Azure Files en `DATABASE_PATH=/data/app.sqlite`.
 - Flags de runtime: `EXECUTION_ENABLED=false`, `EXECUTION_MODE=paper`, `AGENT_MODE=parser`; `SESSION_SECRET` existe solo como secret de Container Apps, nunca en el repo.
-- Costo estimado: ~**USD 20–30/mes** (Container Apps + ACR Basic + Azure Files + Log Analytics).
 
 El runbook completo — recursos, build y comandos de teardown, incluida la variante que borra solo la app y conserva el resource group del mockup estático — está en [`deploy/README.md`](deploy/README.md).
+
+[Probá Onda en Kubernetes local con kind](deploy/k8s/README.md), con el mismo Dockerfile y datos sintéticos. Esto no cambia el preview de Container Apps ni valida AKS.
 
 ## Roadmap
 
 - **Fase 1 — Demo interna live (hecha):** MVP v0.1.0 (PR #4), UI Terminal amable (PR #7), branding Onda + deploy en Azure (PR #8) → v0.2.0. Live en la URL de preview.
-- **Fase 1.1 — Updates en vivo por SSE hechos en código (v0.6.0, pendiente del próximo deploy de la app):** `GET /api/v1/events` autenticado (cookie de sesión, heartbeat, aislamiento por usuario) emite ticks de cotización de Jupiter cada 12 s (sobre el cache de precios Jupiter de 60 s existente), cambios de estado de confirmations solo para su dueño y una señal de portfolio actualizado que hace que la UI refetchee el snapshot autoritativo; el cliente web reconecta con backoff y degrada al refresh manual de 30 s anterior cuando SSE cae. Sigue pendiente en 1.1: ejecución real detrás de `EXECUTION_ENABLED` pendiente de la decisión de fondeo del operador y del checklist KMS de la spec 01; opcionalmente, una proof de firma MCP en devnet iniciada desde la API.
+- **Fase 1.1 — Updates en vivo por SSE habilitados en el preview (v0.6.0):** `GET /api/v1/events` autenticado (cookie de sesión, heartbeat, aislamiento por usuario) emite ticks de cotización de Jupiter cada 12 s (sobre el cache de precios Jupiter de 60 s existente), cambios de estado de confirmations solo para su dueño y una señal de portfolio actualizado que hace que la UI refetchee el snapshot autoritativo; el cliente web reconecta con backoff y degrada al refresh manual de 30 s anterior cuando SSE cae. Sigue pendiente en 1.1: ejecución real detrás de `EXECUTION_ENABLED` pendiente de la decisión de fondeo del operador y del checklist KMS de la spec 01; opcionalmente, una proof de firma MCP en devnet iniciada desde la API.
 - **Fase 1.2 — Onda MCP (en vivo en el preview de Azure como demo interna desde el 2026-11-27):** servidor MCP remoto (Streamable HTTP en `/mcp`, 7 tools, API tokens por usuario con vencimiento a 90 días) para operar desde el agente propio del usuario (ChatGPT/Claude/Cursor) con firma siempre en Onda; prendido en producción con `MCP_ENABLED=true` y probado end-to-end con un cliente MCP real (quote → propose → pending → slide-to-sign físico → ejecutado paper). Sigue siendo demo interna (H11 abierto) sobre la URL cruda de Azure: todavía sin dominio propio (Q-M3) y sin onboarding público; OAuth 2.1 es la fase 1.3. Corrida local: [Correr el MCP de Onda localmente](#correr-el-mcp-de-onda-localmente). Ver [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Fase 2 — Multi-usuario:** embedded wallets por usuario con Phantom Connect, spending limits por usuario (el gate sigue obligatorio).
 - **Fase 3 — Ramp en pesos:** fondeo ARS → USDC con un ramp de terceros; el agente opera igual que hoy.
