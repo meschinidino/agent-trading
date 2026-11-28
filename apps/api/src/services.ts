@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { REGISTRY, USDC, byMint, bySymbol } from "./registry.js";
 import { jupiterOrder, jupiterPrices } from "./jupiter.js";
 import { getSolBalance, getTokenBalances, simulate } from "./solana.js";
+import { hub } from "./events.js";
 
 export const err = (code: string, message: string, status = 400) => Object.assign(new Error(message), { code, status });
 
@@ -78,7 +79,7 @@ export async function createQuote(db: DB, userId: string, walletId: string, symb
 
 export function supersedePending(db: DB, userId: string, exceptId?: string) {
   const rows = db.prepare("SELECT id FROM confirmations WHERE user_id=? AND status IN ('proposed','pending_confirmation')").all(userId) as any[];
-  for (const r of rows) { if (r.id === exceptId) continue; db.prepare("UPDATE confirmations SET status='superseded' WHERE id=?").run(r.id); appendAudit(db, r.id, userId, "superseded", {}); }
+  for (const r of rows) { if (r.id === exceptId) continue; db.prepare("UPDATE confirmations SET status='superseded' WHERE id=?").run(r.id); appendAudit(db, r.id, userId, "superseded", {}); hub.confirmation(userId, db.prepare("SELECT * FROM confirmations WHERE id=?").get(r.id)); }
 }
 
 export function createConfirmation(db: DB, userId: string, walletId: string, quoteId: string, rawIntent: string, symbol: string, side: "buy" | "sell", proposedVia?: { channel: string; tokenId?: string; clientName?: string; clientVersion?: string } | null) {
@@ -97,7 +98,19 @@ export function createConfirmation(db: DB, userId: string, walletId: string, quo
     .run(cId, userId, walletId, quoteId, "paper", "proposed", rawIntent, `${side === "buy" ? "Comprar" : "Vender"} ${symbol}`, q.input_mint, q.output_mint, symbol, side, q.amount_in_atomic, q.quoted_out_atomic, q.min_out_atomic, q.slippage_bps, q.price_impact_pct, null, prev, rec, null, created, null, null, null, null, null, proposedVia ? JSON.stringify(proposedVia) : null);
   db.prepare("UPDATE quotes SET consumed_at=? WHERE id=?").run(created, quoteId);
   appendAudit(db, cId, userId, "created", { quoteId, symbol, side, ...(proposedVia ? { proposedVia } : {}) });
-  return db.prepare("SELECT * FROM confirmations WHERE id=?").get(cId);
+  const row = db.prepare("SELECT * FROM confirmations WHERE id=?").get(cId) as any;
+  hub.confirmation(userId, row);
+  return row;
+}
+
+export function expireStaleConfirmations(db: DB, now = Date.now()) {
+  const rows = db.prepare("SELECT * FROM confirmations WHERE status='pending_confirmation' AND expires_at IS NOT NULL AND expires_at<?").all(new Date(now).toISOString()) as any[];
+  for (const c of rows) {
+    db.prepare("UPDATE confirmations SET status='expired' WHERE id=? AND status='pending_confirmation'").run(c.id);
+    appendAudit(db, c.id, c.user_id, "expired", {});
+    hub.confirmation(c.user_id, { ...c, status: "expired" });
+  }
+  return rows.length;
 }
 
 export function effectiveExpiry(c: any) {
@@ -122,7 +135,9 @@ export async function executeConfirmation(db: DB, confirmationId: string) {
     db.prepare("UPDATE orders SET status='failed' WHERE id=?").run(orderRowId);
     db.prepare("UPDATE confirmations SET status='failed', error_code=?, executed_at=? WHERE id=?").run(code, nowIso(), c.id);
     appendAudit(db, c.id, c.user_id, "failed", { code, detail });
-    return db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id);
+    const failed = db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id) as any;
+    hub.confirmation(c.user_id, failed);
+    return failed;
   };
   if (config.executionEnabled) return fail("EXECUTION_NOT_IMPLEMENTED_IN_MVP", "EXECUTION_ENABLED=true pero el path real (Jupiter tx + firma MCP + reconciliación) no se habilita en v0.1.0");
   if (!q?.transaction_b64) return fail("NO_TRANSACTION", "La quote no trajo transacción de Jupiter para simular");
@@ -158,7 +173,9 @@ export async function executeConfirmation(db: DB, confirmationId: string) {
   db.prepare("UPDATE orders SET status='confirmed' WHERE id=?").run(orderRowId);
   db.prepare("UPDATE confirmations SET status='executed', executed_at=? WHERE id=?").run(ts, c.id);
   appendAudit(db, c.id, c.user_id, "executed", { simulationMode: simMode, creditedAtomic: c.quoted_out_atomic });
-  return db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id);
+  const executed = db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id) as any;
+  hub.confirmation(c.user_id, executed);
+  return executed;
 }
 
 export async function portfolioFor(db: DB, userId: string) {

@@ -12,6 +12,12 @@ let csrf = "";
 let portfolio: any = null;
 let pricesTimer: any = null;
 let countdown: any = null;
+let currentCard: any = null;
+let currentCardText = "";
+let liveSource: EventSource | null = null;
+let liveRetry = 0;
+let liveTimer: any = null;
+let liveClosed = false;
 const prevPrices: Record<string, number> = {};
 const sparkPoints: number[] = [];
 
@@ -275,6 +281,50 @@ function startPrices() {
   pricesTimer = setInterval(refresh, 30000);
 }
 
+/* ---------- SSE en vivo (roadmap 1.1): fallback = refresh de 30 s de arriba ---------- */
+function setLiveState(state: "on" | "retry" | "off") {
+  const dot = document.getElementById("liveDot");
+  const label = document.getElementById("liveState");
+  if (label) label.textContent = state === "on" ? S.liveConnected : state === "retry" ? S.liveReconnecting : S.liveOffline;
+  if (dot) dot.style.background = state === "on" ? "var(--green)" : state === "retry" ? "#e8b93e" : "var(--red)";
+}
+function applyQuotes(items: any[]) {
+  if (!Array.isArray(items)) return;
+  const byMintPrice: Record<string, number> = {};
+  for (const q of items) if (q?.mint && q.priceUsd != null) byMintPrice[q.mint] = q.priceUsd;
+  if (!Object.keys(byMintPrice).length) return;
+  if (portfolio) {
+    portfolio.prices = { ...(portfolio.prices || {}), ...byMintPrice };
+    for (const p of portfolio.positions || []) if (byMintPrice[p.mint] != null) { p.priceUsd = byMintPrice[p.mint]; p.usdValue = p.amount * p.priceUsd; }
+    renderPortfolio(portfolio);
+  } else renderTicker(byMintPrice);
+  const sym = Object.keys(NAMES).find((s) => assetCache.has(s) && items.some((q) => q.symbol === s));
+  if (sym) { const a = assetCache.get(sym); const q = items.find((x) => x.symbol === sym); if (a && q) { a.live.priceUsd = q.priceUsd; a.live.priceChange24hPct = q.priceChange24hPct; a.live.asOf = q.asOf; if (!$("assetDetail").classList.contains("hidden")) renderAssetDetail(a); } }
+}
+function connectLive() {
+  if (liveClosed || liveSource || typeof EventSource === "undefined") return;
+  try { liveSource = new EventSource(API + "/api/v1/events", { withCredentials: true }); } catch { scheduleLiveRetry(); return; }
+  liveSource.addEventListener("ready", () => { liveRetry = 0; setLiveState("on"); });
+  liveSource.addEventListener("quotes", (e: any) => { try { applyQuotes(JSON.parse(e.data).items); } catch {} });
+  liveSource.addEventListener("portfolio", () => { refresh(); });
+  liveSource.addEventListener("confirmation", (e: any) => {
+    let ev: any; try { ev = JSON.parse(e.data); } catch { return; }
+    refresh();
+    if (!currentCard || ev.id !== currentCard.id || !$("confirmCard")) return;
+    if (ev.status === "expired") showExpired(currentCard, currentCardText, true);
+    else if (ev.status === "rejected" || ev.status === "superseded" || ev.status === "failed") { clearInterval(countdown); $("card").innerHTML = ""; currentCard = null; addMsg("bot", S.confirmUpdatedLive); }
+    else if (ev.status === "executed") { clearInterval(countdown); showReceipt(currentCard, { status: "executed", message: "" }); currentCard = null; }
+  });
+  liveSource.onerror = () => { closeLiveSource(); setLiveState("retry"); scheduleLiveRetry(); };
+}
+function closeLiveSource() { try { liveSource?.close(); } catch {} liveSource = null; }
+function scheduleLiveRetry() {
+  if (liveClosed || liveTimer) return;
+  const delay = Math.min(30000, 1000 * 2 ** Math.min(liveRetry++, 5));
+  liveTimer = setTimeout(() => { liveTimer = null; connectLive(); }, delay);
+}
+function closeLive() { liveClosed = true; if (liveTimer) clearTimeout(liveTimer); liveTimer = null; closeLiveSource(); setLiveState("off"); }
+
 /* ---------- swap object: confirmación en el hilo ---------- */
 function amountHtml(value: string, sym: string) {
   const n = parseAmt(value);
@@ -286,6 +336,7 @@ function amountHtml(value: string, sym: string) {
 }
 
 function showCard(c: any, originalText: string) {
+  currentCard = c; currentCardText = originalText;
   clearInterval(countdown);
   const human = NAMES[c.symbol] || c.human || c.symbol;
   const isSell = c.side === "sell";
@@ -648,6 +699,7 @@ function showApp(email: string) {
   loadMcpTokens();
   openDeepLinkConfirmation();
   startPrices();
+  connectLive();
 }
 
 function busy(btn: HTMLButtonElement, label: string, fn: () => Promise<void>) {
@@ -675,6 +727,7 @@ on("login", "click", busy($("login") as HTMLButtonElement, S.loggingIn, async ()
   } catch (e: any) { setMsg(msg, e.message); }
 }));
 on("logout", "click", async () => {
+  closeLive();
   try { await api("POST", "/api/v1/auth/logout"); } catch {}
   location.reload();
 });

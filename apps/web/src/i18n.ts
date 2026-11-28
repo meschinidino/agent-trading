@@ -88,6 +88,8 @@ const ES = {
   connError: "No pude conectar con la API (¿está corriendo en :3001?).",
   stateFallback: (s: string) => `La operación quedó en estado ${s}. No se acreditó ningún activo.`,
   langSwitch: "ES",
+  liveConnected: "En vivo · SSE", liveReconnecting: "Reconectando en vivo…", liveOffline: "Sin conexión en vivo · actualización manual",
+  confirmUpdatedLive: "La propuesta se actualizó en vivo.",
   // asset detail (DIN-26)
   assetDetail: "Ficha del activo", assetInfo: "Info", backToRail: "Volver",
   fIssuer: "Emisor", fUnderlying: "Subyacente", fExchange: "Bolsa", fSector: "Sector",
@@ -159,6 +161,8 @@ const EN: Dict = {
   connError: "Could not reach the API (is it running on :3001?).",
   stateFallback: (s: string) => `The operation ended in state ${s}. No asset was credited.`,
   langSwitch: "EN",
+  liveConnected: "Live · SSE", liveReconnecting: "Reconnecting live…", liveOffline: "Live connection down · manual refresh",
+  confirmUpdatedLive: "The proposal was updated live.",
   assetDetail: "Asset details", assetInfo: "Info", backToRail: "Back",
   fIssuer: "Issuer", fUnderlying: "Underlying", fExchange: "Exchange", fSector: "Sector",
   fIpo: "IPO", fInception: "ETF inception", fExpense: "Expense ratio", fType: "Type",

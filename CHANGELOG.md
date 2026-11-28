@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-28
+
+### Added
+- **Updates en vivo por SSE — roadmap 1.1 (refs DIN-35):** nuevo endpoint autenticado `GET /api/v1/events` con la misma cookie de sesión web (sin sistema de auth nuevo; GET no muta, así que no exige CSRF como los POST del codebase). Eventos: `ready` al conectar; `quotes` (broadcast: precio y cambio 24 h por símbolo del registry con `asOf`, tick de 12 s servido desde el cache Jupiter `price/v3` de 60 s existente — ninguna fuente de precios nueva y como máximo 1 request por mint/minuto a Jupiter sin importar los clientes); `confirmation` (solo al dueño: `proposed/pending_confirmation/confirmed/executing/executed/rejected/expired/superseded/failed`, emitido desde las transiciones reales de la DB incluyendo expiración por barrido de 5 s y revocación de token MCP); y `portfolio` (solo al dueño tras `executed`/`failed`: señal liviana para que la UI refetchee el snapshot autoritativo de `/portfolio` + `/transactions`, sin duplicar la lógica de valuación en el payload). Heartbeat como comentario SSE cada 20 s (`: heartbeat`) que además cierra el stream de forma elegante cuando la sesión vence o se revoca (logout). Aislamiento por usuario probado con cliente SSE real sobre HTTP: dos sesiones simultáneas, A recibe su `confirmation` y B no recibe nada de A (y viceversa). La web se suscribe con `EventSource` (reconexión con backoff 1s→30s, indicador de estado en vivo en el header, tarjetas de confirmación y ficha del activo se actualizan con los eventos) y si SSE cae degrada al refresh de 30 s previo sin romperse; el stream se cierra al salir. Las reglas del gate no cambian: un refresh de cotización sigue creando una confirmation nueva (Q2) y SSE solo transporta eventos. El MCP no se toca (polling por Q-M4), `EXECUTION_ENABLED` sigue `false`, y las únicas env nuevas son `SSE_PRICE_TICK_MS`/`SSE_HEARTBEAT_MS` con defaults seguros documentados en `.env.example`. Tests nuevos deterministas (hub por usuario, snapshot del registry, expiración, aislamiento e2e por HTTP y reject vía API): 42 totales con el flake preexistente conocido de `mcp.test.ts` fuera de este cambio.
+
 ## [0.5.5] - 2026-11-28
 
 ### Changed

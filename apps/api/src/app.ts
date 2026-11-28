@@ -8,10 +8,11 @@ import { config } from "./config.js";
 import { parseIntent, fmtAtomic } from "./parser.js";
 import { bySymbol, USDC } from "./registry.js";
 import { verifyRegistryToken, jupiterPrices } from "./jupiter.js";
-import { createConfirmation, createQuote, effectiveExpiry, err, executeConfirmation, getPaperWallet, PaperWalletProvider, portfolioFor, paperBalances } from "./services.js";
+import { createConfirmation, createQuote, effectiveExpiry, err, executeConfirmation, expireStaleConfirmations, getPaperWallet, PaperWalletProvider, portfolioFor, paperBalances } from "./services.js";
 import { issueToken, listTokens, revokeToken } from "./mcp-tokens.js";
 import { registerMcp, mcpRateLimit } from "./mcp.js";
 import { allAssetInfo, assetInfoFor } from "./asset-info-service.js";
+import { hub, quoteSnapshot, startPriceTicker } from "./events.js";
 import { REGISTRY } from "./registry.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
@@ -34,7 +35,38 @@ export async function buildApp(dbPath = config.databasePath) {
       if (!v.verified) throw new Error(`Registry boot check FAILED (fail closed): ${t.symbol} ${t.mint} no verificado en Jupiter`);
     }
   }
-  app.get("/health", async () => ({ ok: true, version: config.serverVersion, executionEnabled: config.executionEnabled, agentMode: config.agentMode, mcpEnabled: config.mcpEnabled, mcpContractVersion: config.mcpContractVersion }));
+  startPriceTicker(config.ssePriceTickMs);
+  const expirySweeper = setInterval(() => { try { expireStaleConfirmations(db); } catch {} }, 5000);
+  if (typeof (expirySweeper as any).unref === "function") (expirySweeper as any).unref();
+  app.get("/health", async () => ({ ok: true, version: config.serverVersion, executionEnabled: config.executionEnabled, agentMode: config.agentMode, mcpEnabled: config.mcpEnabled, mcpContractVersion: config.mcpContractVersion, sseEnabled: true }));
+
+  // Roadmap 1.1 (DIN-35): SSE con la MISMA sesión web (cookie HttpOnly).
+  // GET no muta estado, así que no exige CSRF (el codebase lo exige en POST).
+  // Eventos: ready, quotes (broadcast), confirmation (solo dueño), portfolio
+  // (solo dueño, señal de refetch), ping del cliente vía heartbeat comment.
+  app.get("/api/v1/events", async (req: any, reply) => {
+    try { auth(req); } catch (e: any) { return reply.code(e.status || 401).send({ error: { code: e.code || "UNAUTHORIZED", message: e.message } }); }
+    const userId = req.user.id; const sessionId = req.session.id; const sessionExpires = req.session.expires_at;
+    reply.hijack();
+    const raw = reply.raw;
+    raw.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
+    let closed = false;
+    const send = (event: string, data: unknown) => { if (!closed) raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
+    const remove = hub.add(userId, send);
+    send("ready", { ok: true, version: config.serverVersion });
+    quoteSnapshot().then((items) => send("quotes", { items })).catch(() => {});
+    const heartbeat = setInterval(() => {
+      if (closed) return;
+      // Cierre elegante al vencer/revocarse la sesión (logout la borra).
+      const s = db.prepare("SELECT expires_at FROM sessions WHERE id=?").get(sessionId) as any;
+      if (!s || new Date(s.expires_at).getTime() < Date.now() || new Date(sessionExpires).getTime() < Date.now()) { cleanup(); try { raw.end(); } catch {} return; }
+      try { raw.write(`: heartbeat ${Date.now()}\n\n`); } catch { cleanup(); }
+    }, config.sseHeartbeatMs);
+    if (typeof (heartbeat as any).unref === "function") (heartbeat as any).unref();
+    function cleanup() { if (closed) return; closed = true; clearInterval(heartbeat); remove(); }
+    req.raw.on("close", cleanup); raw.on("close", cleanup); raw.on("error", cleanup);
+    return reply;
+  });
   const checkQuoteBudget = () => { if (Date.now() > quotesPerHour.reset) { quotesPerHour.count = 0; quotesPerHour.reset = Date.now() + 3600000; } if (++quotesPerHour.count > 300) throw err("GLOBAL_QUOTE_BUDGET_EXCEEDED", "Presupuesto global de quotes agotado", 429); };
 
   function auth(req: any) {
@@ -136,7 +168,7 @@ export async function buildApp(dbPath = config.databasePath) {
   function ownedConfirmation(req: any) { const c = db.prepare("SELECT * FROM confirmations WHERE id=?").get(req.params.id) as any; if (!c || c.user_id !== req.user.id) throw err("NOT_FOUND", "Confirmation no encontrada", 404); return c; }
   app.post("/api/v1/confirmations/:id/present", async (req: any, reply) => {
     try { auth(req); csrf(req); let c = ownedConfirmation(req);
-      if (c.status === "proposed") { db.prepare("UPDATE confirmations SET status='pending_confirmation', presented_at=? WHERE id=?").run(nowIso(), c.id); appendAudit(db, c.id, req.user.id, "presented", {}); c = db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id); }
+      if (c.status === "proposed") { db.prepare("UPDATE confirmations SET status='pending_confirmation', presented_at=? WHERE id=?").run(nowIso(), c.id); appendAudit(db, c.id, req.user.id, "presented", {}); c = db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id); hub.confirmation(req.user.id, c); }
       if (c.status !== "pending_confirmation") return { id: c.id, status: c.status, expiresAt: c.expires_at };
       const exp = effectiveExpiry(c); db.prepare("UPDATE confirmations SET expires_at=? WHERE id=?").run(exp, c.id);
       return { id: c.id, status: "pending_confirmation", expiresAt: exp }; } catch (e) { return replyErr(reply, e); }
@@ -147,9 +179,10 @@ export async function buildApp(dbPath = config.databasePath) {
       if (c.status === "superseded") throw err("CONFIRMATION_SUPERSEDED", "Esta propuesta ya no está vigente porque hay una más nueva. Fijate en la última tarjeta.", 409);
       if (c.status === "rejected") throw err("CONFIRMATION_REJECTED", "Esta propuesta fue rechazada", 409);
       if (c.status !== "pending_confirmation") throw err("CONFIRMATION_NOT_PENDING", `Estado ${c.status} no confirmable`, 409);
-      const exp = effectiveExpiry(c); if (exp && Date.now() > new Date(exp).getTime()) { db.prepare("UPDATE confirmations SET status='expired' WHERE id=?").run(c.id); appendAudit(db, c.id, req.user.id, "expired", {}); throw err("confirmation_expired", "La cotización venció y la compra no se hizo. ¿Querés que te cotice de nuevo?", 409); }
+      const exp = effectiveExpiry(c); if (exp && Date.now() > new Date(exp).getTime()) { db.prepare("UPDATE confirmations SET status='expired' WHERE id=?").run(c.id); appendAudit(db, c.id, req.user.id, "expired", {}); hub.confirmation(req.user.id, db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id)); throw err("confirmation_expired", "La cotización venció y la compra no se hizo. ¿Querés que te cotice de nuevo?", 409); }
       db.prepare("UPDATE confirmations SET status='confirmed', decided_at=?, decided_by=? WHERE id=?").run(nowIso(), req.user.id, c.id);
       appendAudit(db, c.id, req.user.id, "confirmed", { decidedBy: req.user.id });
+      hub.confirmation(req.user.id, db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id));
       const done: any = await executeConfirmation(db, c.id);
       const ex = db.prepare("SELECT e.* FROM executions e JOIN orders o ON o.id=e.order_id WHERE o.confirmation_id=?").get(c.id) as any;
       const t = bySymbol(c.symbol);
@@ -165,6 +198,7 @@ export async function buildApp(dbPath = config.databasePath) {
       if (!["proposed", "pending_confirmation"].includes(c.status)) throw err("CONFIRMATION_NOT_REJECTABLE", `Estado ${c.status} no rechazable`, 409);
       db.prepare("UPDATE confirmations SET status='rejected', decided_at=?, decided_by=? WHERE id=?").run(nowIso(), req.user.id, c.id);
       appendAudit(db, c.id, req.user.id, "rejected", { decidedBy: req.user.id });
+      hub.confirmation(req.user.id, db.prepare("SELECT * FROM confirmations WHERE id=?").get(c.id));
       return { id: c.id, status: "rejected", message: "Compra cancelada. No se movió nada de tu wallet." }; } catch (e) { return replyErr(reply, e); }
   });
   app.get("/api/v1/confirmations/:id", async (req: any, reply) => { try { auth(req); const c = ownedConfirmation(req); const tkn = bySymbol(c.symbol); const dec = tkn?.decimals ?? 8; return { id: c.id, status: c.status, mode: c.mode, symbol: c.symbol, side: c.side, amountUsd: Number(c.amount_in_atomic) / 1e6, quotedOut: String(Number(c.quoted_out_atomic) / 10 ** dec), minOut: String(Number(c.min_out_atomic) / 10 ** dec), slippageBps: c.slippage_bps, priceImpactPct: c.price_impact_pct, expiresAt: c.expires_at, txSignature: null, proposedVia: c.proposed_via ? JSON.parse(c.proposed_via) : null }; } catch (e) { return replyErr(reply, e); } });

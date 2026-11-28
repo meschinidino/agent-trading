@@ -38,5 +38,9 @@ export const config = {
     return "DELETE";
   })(),
   mcpTokenTtlDays: 90,
-  serverVersion: "0.5.5",
+  // Roadmap 1.1 (DIN-35): SSE. Tick de precios sobre el cache Jupiter de 60s y
+  // heartbeat para proxies. Sin env nueva salvo estos dos con default seguro.
+  ssePriceTickMs: Number(process.env.SSE_PRICE_TICK_MS || 12000),
+  sseHeartbeatMs: Number(process.env.SSE_HEARTBEAT_MS || 20000),
+  serverVersion: "0.6.0",
 };
