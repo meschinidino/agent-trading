@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-28
+
+### Added
+- **Diseño de etapa 2: Onda en AKS, costeado, sin crear recursos (refs DIN-34):** nuevo `deploy/k8s/README.md` con la arquitectura objetivo (AKS tier Free en eastus, 1 nodo `Standard_B2s`, Kubernetes 1.33, Deployment de 1 réplica con `Recreate` porque SQLite fuerza un solo escritor), la decisión de ingress (ingress-nginx + cert-manager/Let's Encrypt; Application Gateway Standard_v2 rechazado para la demo por costar ≈3× el resto del stack), y la decisión de storage con la evidencia de incidentes DIN-25/DIN-30: **Managed Disk RWO recomendado** (semántica de disco local; la clase de falla de locks sobre SMB desaparece), Azure Files descartado por repetir el riesgo actual y PostgreSQL Flexible Server costeado (≈ USD 16/mes) pero declarado fuera de alcance por exigir reescribir la capa `node:sqlite`. Incluye el procedimiento de migración de la DB viva (ensayo con copia, `wal_checkpoint` + `integrity_check`, manifiesto de row counts y sha256 verificado post-copia; la DB de producción nunca se toca en lectura durante el diseño), paridad de secrets/config (SESSION_SECRET solo referenciado, creado fuera de banda; ACR reusado con `AcrPull`; tags `onda:vX.Y.Z`), tabla de costos con precios retail citados el 2026-11-28 (actual ≈ USD 20–30/mes vs recomendado ≈ USD 67–79/mes, **delta ≈ +USD 40–50/mes: OK de Dino requerido antes de crear cualquier recurso**), plan de ejecución de la fase siguiente con rollback a Container Apps intacto, y manifests draft en `deploy/k8s/` (namespace, ConfigMap sin secretos, PVC, Deployment, Service, Ingress con timeouts de 3600 s para SSE, ClusterIssuer) que no contienen ningún secreto real. `serverVersion` pasa a 0.6.1 (toma efecto en el próximo deploy de la app; este PR es de diseño y no requiere redeploy).
+
 ## [0.6.0] - 2026-11-28
 
 ### Added

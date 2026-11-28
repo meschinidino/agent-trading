@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: onda
+spec:
+  type: ClusterIP
+  selector:
+    app: onda
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

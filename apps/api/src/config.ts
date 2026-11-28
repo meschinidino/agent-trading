@@ -42,5 +42,5 @@ export const config = {
   // heartbeat para proxies. Sin env nueva salvo estos dos con default seguro.
   ssePriceTickMs: Number(process.env.SSE_PRICE_TICK_MS || 12000),
   sseHeartbeatMs: Number(process.env.SSE_HEARTBEAT_MS || 20000),
-  serverVersion: "0.6.0",
+  serverVersion: "0.6.1",
 };

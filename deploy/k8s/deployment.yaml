@@ -1,0 +1,59 @@
+# SQLite forces a single writer: replicas is pinned to 1 and the strategy is
+# Recreate, so a rollout never runs two pods against the same /data file.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onda
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: onda
+  template:
+    metadata:
+      labels:
+        app: onda
+    spec:
+      containers:
+        - name: onda
+          # Tag follows repo VERSION discipline (onda:vX.Y.Z), never :latest.
+          image: ondaagenttrading.azurecr.io/onda:v0.6.0
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: onda-config
+          env:
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: onda-secrets
+                  key: SESSION_SECRET
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: onda-data
