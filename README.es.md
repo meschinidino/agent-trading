@@ -4,13 +4,13 @@
 
 Un agente inversor en lenguaje natural que compra acciones y ETFs tokenizados (xStocks) desde una wallet cripto detrás de un confirmation gate. Este repo es `agent-trading`; **Onda** es el nombre del producto.
 
-**Versión 0.5.4** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
+**Versión 0.5.5** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
 
 ## Preview en vivo
 
 El producto está **live como “Onda — Tu agente inversor”** en https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps, resource group `rg-agent-trading-preview`, ~USD 20–30/mes).
 
-Qué funciona ahí hoy: registrarte e iniciar sesión, crear una paper wallet y cargarla, quotes reales de Jupiter en vivo, revisar la propuesta de swap y firmar compras paper con slide-to-sign, y ver portfolio, la ficha por activo (datos en vivo de Jupiter más IPO/inception, emisor y sector con fuente — también expuesta read-only a agentes vía la tool MCP `onda_get_asset_info`) e historial. El flujo agéntico se probó end-to-end sobre la URL pública: register → wallet → depósito → compra paper de SPYx → portfolio.
+Qué funciona ahí hoy: registrarte e iniciar sesión, crear una paper wallet y cargarla, quotes reales de Jupiter en vivo, revisar la propuesta de swap y firmar compras paper con slide-to-sign, y ver portfolio, la ficha por activo (datos en vivo de Jupiter más IPO/inception, emisor y sector con fuente — también expuesta read-only a agentes vía la tool MCP `onda_get_asset_info`) e historial. El flujo agéntico se probó end-to-end sobre la URL pública: register → wallet → depósito → compra paper de SPYx → portfolio. El servidor MCP de Onda también está prendido en este preview como demo interna: en la app, abrí **Settings → Agentes externos (MCP)**, creá un token y apuntá cualquier cliente MCP a `https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp` con `Authorization: Bearer <token>` (7 tools; la firma siempre ocurre en Onda, probado end-to-end con un cliente MCP real: quote → propose → pending → slide-to-sign físico → ejecutado paper).
 
 También vive un mockup estático de diseño en https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — es **solo un mockup de diseño**, no la app.
 
@@ -24,7 +24,7 @@ La tesis es una sola y a propósito angosta: un LLM puede operar una wallet real
 
 ## Estado
 
-Onda 0.5.4 es una demo interna live sobre infraestructura real, con ejecución paper:
+Onda 0.5.5 es una demo interna live sobre infraestructura real, con ejecución paper:
 
 - **UI Terminal amable** (la dirección de diseño aprobada): terminal oscura fría, confirmación como objeto de swap de Jupiter con slide-to-sign, layout con thread central, rail de portfolio y strip de precios en vivo. Reemplazó a la dirección anterior “editorial C” tras un teardown de productos comparables; C queda como antecedente histórico, no como dirección vigente.
 - **Datos de mercado reales, fills simulados.** Las quotes, los precios, las verificaciones con `simulateTransaction` y los balances on-chain de la agent wallet son reales y en vivo. Los USDC y xStocks paper son filas de un ledger local, rotuladas `mode: "paper"` end-to-end y nunca presentadas como balances on-chain.
@@ -71,7 +71,7 @@ Las URLs locales son para desarrollo; el preview en vivo de arriba es la forma m
 
 ### Correr el MCP de Onda localmente
 
-El servidor MCP sale detrás de `MCP_ENABLED` (apagado por default). Para probarlo local:
+El servidor MCP sale detrás de `MCP_ENABLED` (apagado por default en el código; prendido en el preview en vivo como demo interna). Para probarlo local:
 
 1. Levantá la API con el flag prendido y la base pública apuntando al cliente web (se usa para armar los deep links `signingUrl`):
    ```bash
@@ -148,7 +148,7 @@ El runbook completo — recursos, build y comandos de teardown, incluida la vari
 
 - **Fase 1 — Demo interna live (hecha):** MVP v0.1.0 (PR #4), UI Terminal amable (PR #7), branding Onda + deploy en Azure (PR #8) → v0.2.0. Live en la URL de preview.
 - **Fase 1.1 — Siguiente:** updates en vivo por SSE (decidido: SSE sobre polling); ejecución real detrás de `EXECUTION_ENABLED` pendiente de la decisión de fondeo del operador y del checklist KMS de la spec 01; opcionalmente, una proof de firma MCP en devnet iniciada desde la API.
-- **Fase 1.2 — Onda MCP (código enviado detrás de flag, no prendido en Azure):** servidor MCP remoto (Streamable HTTP en `/mcp`, 7 tools, API tokens por usuario con vencimiento a 90 días) para operar desde el agente propio del usuario (ChatGPT/Claude/Cursor) con firma siempre en Onda; queda apagado hasta `MCP_ENABLED=true` y dominio propio. Corrida local: [Correr el MCP de Onda localmente](#correr-el-mcp-de-onda-localmente). Ver [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
+- **Fase 1.2 — Onda MCP (en vivo en el preview de Azure como demo interna desde el 2026-11-27):** servidor MCP remoto (Streamable HTTP en `/mcp`, 7 tools, API tokens por usuario con vencimiento a 90 días) para operar desde el agente propio del usuario (ChatGPT/Claude/Cursor) con firma siempre en Onda; prendido en producción con `MCP_ENABLED=true` y probado end-to-end con un cliente MCP real (quote → propose → pending → slide-to-sign físico → ejecutado paper). Sigue siendo demo interna (H11 abierto) sobre la URL cruda de Azure: todavía sin dominio propio (Q-M3) y sin onboarding público; OAuth 2.1 es la fase 1.3. Corrida local: [Correr el MCP de Onda localmente](#correr-el-mcp-de-onda-localmente). Ver [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Fase 2 — Multi-usuario:** embedded wallets por usuario con Phantom Connect, spending limits por usuario (el gate sigue obligatorio).
 - **Fase 3 — Ramp en pesos:** fondeo ARS → USDC con un ramp de terceros; el agente opera igual que hoy.
 
@@ -165,7 +165,7 @@ Registradas el 2026-11-27 (detalle en la spec 06):
 - **La ejecución sigue apagada:** `EXECUTION_ENABLED=false` hasta que el operador decida el fondeo.
 - **H11 — ABIERTO (responsable: titular del proyecto):** la elegibilidad xStocks para un operador en Argentina sigue **sin verificar**. Hasta verificarla, la demo se queda interna. Es el único ítem de compliance abierto y bloquea mostrarla a terceros.
 
-Límites honestos: ejecución paper solamente, código MCP enviado detrás de flag pero todavía no prendido en la preview de Azure, sin Phantom Connect, sin ramp en ARS, sin SSE todavía, sin voz. Nada de esto es asesoramiento financiero.
+Límites honestos: ejecución paper solamente, MCP en vivo solo como demo interna sobre la URL cruda de Azure (sin dominio propio, sin directorios públicos, H11 todavía abierto), sin Phantom Connect, sin ramp en ARS, sin SSE todavía, sin voz. Nada de esto es asesoramiento financiero.
 
 ## Docs
 
