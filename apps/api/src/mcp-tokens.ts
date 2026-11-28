@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { appendAudit, id, nowIso, type DB } from "./db.js";
 import { config } from "./config.js";
 import { err } from "./services.js";
+import { hub } from "./events.js";
 
 export const MCP_SCOPES = ["read:portfolio", "quote", "propose"] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
@@ -41,6 +42,7 @@ export function expirePendingForToken(db: DB, tokenId: string, userId: string, r
     if (via?.tokenId !== tokenId) continue;
     db.prepare("UPDATE confirmations SET status='expired' WHERE id=?").run(r.id);
     appendAudit(db, r.id, userId, "expired", { reason: `mcp_token_${reason}`, tokenId, decidedBy: userId });
+    hub.confirmation(userId, db.prepare("SELECT * FROM confirmations WHERE id=?").get(r.id));
     expired++;
   }
   return expired;

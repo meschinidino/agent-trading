@@ -4,7 +4,7 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Version 0.5.5** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Version 0.6.0** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
@@ -14,7 +14,7 @@ What works there today: register and sign in, create a paper wallet and fund it,
 
 A static design mockup is also live at https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — that is a **design mockup only**, not the app.
 
-What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through the Phantom MCP signing service (operator-hosted), the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`), and SSE live updates are decided but not yet implemented.
+What the live preview deliberately does **not** do: real execution is off (`EXECUTION_ENABLED=false`), signed transactions still run through the Phantom MCP signing service (operator-hosted), the Eve/LLM chat mode is off without model keys (`AGENT_MODE=parser`), and SSE live updates ship in this release in code (they take effect on the live preview at the next app deploy).
 
 ## The idea
 
@@ -24,7 +24,7 @@ The thesis is narrow on purpose: an LLM can operate a real wallet usefully if th
 
 ## Status
 
-Onda 0.5.5 is a live internal demo on real infrastructure, running paper execution:
+Onda 0.6.0 is a live internal demo on real infrastructure, running paper execution:
 
 - **Terminal amable UI** (the approved design direction): a cold dark terminal, Jupiter swap-object confirmation with slide-to-sign, a thread-centered layout, a portfolio rail and a live prices strip. This replaced the earlier “editorial C” direction after a teardown of comparable products; C is historical, not current.
 - **Real market data, simulated fills.** Quotes, prices, `simulateTransaction` checks and the agent wallet's on-chain balances are real and live. Paper USDC and paper xStocks are local ledger rows, labeled `mode: "paper"` end-to-end and never presented as on-chain balances.
@@ -41,7 +41,7 @@ From a fresh clone, run everything from the repository root:
 corepack enable   # provides the pinned pnpm 12.11.2 (skip if pnpm 12 is already installed)
 pnpm install      # native build scripts for argon2/bufferutil/utf-8-validate are allow-listed in pnpm-workspace.yaml
 pnpm build        # builds apps/api (tsc) and apps/web (vite)
-pnpm test         # 29 tests (apps/api, vitest)
+pnpm test         # 42 tests (apps/api, vitest)
 ```
 
 The API does **not** auto-load `.env` (there is no dotenv dependency), so export the variables in your shell. Every variable in [`.env.example`](.env.example) has a demo default in `apps/api/src/config.ts` except that you should always set a real `SESSION_SECRET`:
@@ -147,7 +147,7 @@ The full runbook — resources, build, and teardown commands, including the vari
 ## Roadmap
 
 - **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
-- **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
+- **Phase 1.1 — SSE live updates done in code (v0.6.0, pending the next app deploy):** authenticated `GET /api/v1/events` (session cookie, heartbeat, per-user isolation) streams Jupiter quote ticks every 12s (backed by the existing 60s Jupiter price cache), confirmation state changes for the owner only, and a portfolio-changed signal that makes the UI refetch the authoritative snapshot; the web client reconnects with backoff and degrades to the previous 30s manual refresh when SSE is down. Still pending in 1.1: real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
 - **Phase 1.2 — Onda MCP (live on the Azure preview as an internal demo since 2026-11-27):** remote MCP server (Streamable HTTP at `/mcp`, 7 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; enabled in production with `MCP_ENABLED=true` and proven end-to-end with a real MCP client (quote → propose → pending → physical slide-to-sign → executed paper). Still an internal demo (H11 open) on the raw Azure URL: no custom domain yet (Q-M3) and no public onboarding; OAuth 2.1 is phase 1.3. Local run: [Run the Onda MCP locally](#run-the-onda-mcp-locally). See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
 - **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.
@@ -159,13 +159,13 @@ Delivery view: [`docs/roadmap.md`](docs/roadmap.md). Risks and the decision log 
 Recorded 2026-11-27 (detail in spec 06):
 
 - **Q1 — Demo audience: internal.** The demo is internal-only; no external showing yet.
-- **Q3 — Live updates: SSE.** SSE was picked over polling; not yet implemented (phase 1.1).
+- **Q3 — Live updates: SSE.** Implemented in v0.6.0 (phase 1.1): `GET /api/v1/events` with the web session; MCP keeps polling by design (Q-M4).
 - **Q4 — MCP host: operator host (single-tenant dev host today).** A dedicated host only if the demo needs it.
 - **Q6 — Voice input: no.** Out of scope for now.
 - **Execution stays off:** `EXECUTION_ENABLED=false` until the operator decides on funding.
 - **H11 — OPEN (owner: project owner):** xStocks eligibility for an operator in Argentina is still **unverified**. Until verified, the demo stays internal-only. This is the one open compliance item and it gates any third-party showing.
 
-Honest limits: paper execution only, MCP live only as an internal demo on the raw Azure URL (no custom domain, no public directories, H11 still open), no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
+Honest limits: paper execution only, MCP live only as an internal demo on the raw Azure URL (no custom domain, no public directories, H11 still open), no Phantom Connect, no ARS on-ramp, no voice. Nothing here is financial advice.
 
 ## Docs
 
