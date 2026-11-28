@@ -6,6 +6,8 @@ import type { FastifyInstance } from "fastify";
 // MCP_ENABLED is read at module load; set it before importing the app.
 process.env.MCP_ENABLED = "true";
 process.env.PUBLIC_BASE_URL = "http://onda.test";
+process.env.SOLANA_RPC_URL = "https://rpc.onda.test";
+process.env.SOLANA_RPC_FALLBACK_URL = "https://rpc.onda.test";
 
 const { buildApp } = await import("../src/app.js");
 const { openDb, nowIso, id } = await import("../src/db.js");
@@ -94,6 +96,7 @@ describe("Onda MCP fase 1.2 — cliente MCP real contra Fastify", () => {
     const portfolio: any = payload(await client.callTool({ name: "onda_get_portfolio", arguments: {} }));
     expect(portfolio.mode).toBe("paper");
     expect(portfolio.usdc.amount).toBe(100);
+    expect(portfolio.real).toMatchObject({ mode: "real", sol: 1.5, tokens: [] });
   });
 
   it("onda_get_asset_info: ficha mergeada con fuente/asOf, scope read, sin inventos", async () => {
@@ -107,8 +110,7 @@ describe("Onda MCP fase 1.2 — cliente MCP real contra Fastify", () => {
     expect(info.curated.sourceUrl).toMatch(/^https:/);
     expect(info.curated.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(info.live.source).toBe("jupiter");
-    // campos vivos: número real de Jupiter o null — nunca un placeholder
-    expect(info.live.priceUsd === null || typeof info.live.priceUsd === "number").toBe(true);
+    expect(info.live).toMatchObject({ priceUsd: 101.25, priceChange24hPct: 2.5, volume24hUsd: 50 });
     expect(info).not.toHaveProperty("dividendYieldPct");
     const bad: any = await client.callTool({ name: "onda_get_asset_info", arguments: { symbol: "TSLAx" } });
     expect(bad.isError).toBe(true);
