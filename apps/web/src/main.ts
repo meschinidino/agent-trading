@@ -1,4 +1,5 @@
 import { S, LANG, IS_EN, LOCALE, setLang, orderText, localizeServerReply, localizeServerMessage } from "./i18n";
+import { mountWalletPanel } from "./wallet-panel";
 const API = import.meta.env.VITE_API_URL ?? "";
 document.documentElement.lang = IS_EN ? "en" : "es";
 if (IS_EN) document.title = "Onda — Your investing agent";
@@ -8,6 +9,7 @@ document.querySelectorAll<HTMLElement>("[data-i18n-aria]").forEach((el) => { con
 { const lb = document.getElementById("langBtn"); if (lb) { lb.textContent = IS_EN ? "ES" : "EN"; lb.addEventListener("click", () => setLang(IS_EN ? "es" : "en")); } }
 const $ = (id: string) => document.getElementById(id)!;
 const on = (id: string, ev: string, fn: (e: Event) => void) => $(id).addEventListener(ev, fn);
+const connectedWallet = mountWalletPanel(API);
 let csrf = "";
 let portfolio: any = null;
 let pricesTimer: any = null;
@@ -695,6 +697,7 @@ function showApp(email: string) {
   $("who").textContent = email;
   $("logout").classList.remove("hidden");
   $("authPanel").classList.add("hidden");
+  connectedWallet.show();
   refresh().then(() => greetEmpty());
   loadMcpTokens();
   openDeepLinkConfirmation();
@@ -728,6 +731,7 @@ on("login", "click", busy($("login") as HTMLButtonElement, S.loggingIn, async ()
 }));
 on("logout", "click", async () => {
   closeLive();
+  void connectedWallet.disconnect();
   try { await api("POST", "/api/v1/auth/logout"); } catch {}
   location.reload();
 });

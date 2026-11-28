@@ -14,6 +14,7 @@ import { registerMcp, mcpRateLimit } from "./mcp.js";
 import { allAssetInfo, assetInfoFor } from "./asset-info-service.js";
 import { hub, quoteSnapshot, startPriceTicker } from "./events.js";
 import { REGISTRY } from "./registry.js";
+import { balanceQuery, connectedWalletBalances } from "./connected-wallet.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 
@@ -115,6 +116,18 @@ export async function buildApp(dbPath = config.databasePath) {
     try { auth(req); csrf(req); const w = PaperWalletProvider.createWallet(db, req.user.id); return reply.code(201).send({ id: w.id, mode: w.mode, provider: w.provider, label: "Paper wallet (ledger demo, sin claves)" }); } catch (e) { return replyErr(reply, e); }
   });
   app.get("/api/v1/wallets", async (req: any, reply) => { try { auth(req); const rows = db.prepare("SELECT * FROM wallets WHERE user_id=?").all(req.user.id); return { items: rows, systemRealWallet: { address: config.agentWallet, provider: "phantom-mcp-agent", mode: "real", viewOnly: true } }; } catch (e) { return replyErr(reply, e); } });
+  app.get("/api/v1/connected-wallet/balances", async (req, reply) => {
+    reply.header("cache-control", "no-store");
+    try {
+      auth(req);
+      const query = balanceQuery.safeParse(req.query);
+      if (!query.success) throw err("VALIDATION", "Dirección pública o red inválida", 422);
+      rateLimit(`wallet-balances:${req.user.id}`, 20, 60000);
+      const snapshot = await connectedWalletBalances(query.data);
+      if (!snapshot) throw err("RPC_UNAVAILABLE", "No se pudieron consultar los saldos de Solana", 503);
+      return snapshot;
+    } catch (e) { return replyErr(reply, e); }
+  });
   app.post("/api/v1/wallets/:id/deposit", async (req: any, reply) => {
     try { auth(req); csrf(req); const w = db.prepare("SELECT * FROM wallets WHERE id=?").get(req.params.id) as any; if (!w || w.user_id !== req.user.id) throw err("NOT_FOUND", "Wallet no encontrada", 404);
       const amountUsd = Number(req.body?.amountUsd); if (!amountUsd || amountUsd <= 0) throw err("VALIDATION", "amountUsd inválido", 422);

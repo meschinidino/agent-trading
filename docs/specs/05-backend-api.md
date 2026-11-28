@@ -42,7 +42,8 @@ El gate mueve fondos; sus endpoints se especifican cerrados:
 - **IDs impredecibles:** todo `id` público (confirmations, quotes, orders) es UUIDv4 o un random de al menos 128 bits. Ningún ID secuencial ni derivable se expone en una ruta.
 - **CSRF:** todo POST exige un token CSRF válido atado a la sesión, además de la cookie. La cookie de sesión es `HttpOnly`, `Secure` y **`SameSite=Lax` como mínimo** (`Strict` si el flujo de login lo permite).
 - **Sesión demo:** la credencial compartida por env rota al menos cada **24 horas** o ante cualquier sospecha de exposición, y la sesión emitida vence a las **8 horas** sin uso. La credencial nunca viaja al frontend ni queda en el repo.
-- **Fase 2:** social login de Phantom Connect crea/identifica al usuario; la sesión de la app (cookie propia, ~31 días alineada a Connect) autoriza los endpoints, y cada request resuelve `userId → wallet` del lado servidor. El frontend nunca envía addresses como autoridad: los deriva el backend de la sesión. Las reglas de ownership, IDs impredecibles y CSRF de arriba aplican sin cambios.
+- **Prep fase 2 (DIN-36):** el endpoint de [consulta de balances públicos](01-wallet.md#prep-de-fase-2--phantom-inyectado-solo-lectura-din-36) recibe la dirección como dato a consultar, no como credencial ni autoridad para operar. No la asocia al usuario.
+- **Fase 2:** se plantea que el social login de Phantom Connect cree/identifique al usuario; la sesión de la app (cookie propia) autoriza los endpoints, y cada request resuelve `userId → wallet` del lado servidor. El frontend nunca envía addresses como autoridad: los deriva el backend de la sesión. Las reglas de ownership, IDs impredecibles y CSRF de arriba aplican sin cambios.
 
 ### Modelo de datos
 

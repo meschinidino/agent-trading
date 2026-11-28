@@ -4,6 +4,7 @@ export const config = {
   databasePath: process.env.DATABASE_PATH || "./data/app.sqlite",
   rpcUrl: process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
   rpcFallback: process.env.SOLANA_RPC_FALLBACK_URL || "https://solana-rpc.publicnode.com",
+  walletDevnetRpcUrl: process.env.WALLET_DEVNET_RPC_URL || "https://api.devnet.solana.com",
   agentWallet: process.env.AGENT_WALLET_ADDRESS || "DbjQkyag5Fnb8tbWe2BFWFAXmYrn6qAWDqk5Uqv2pCcu",
   simulationProofTaker: process.env.SIMULATION_PROOF_TAKER || "2AQdpHJ2JpcEgPiATUXjQxA8QmafFegfQwSLWSprPicm",
   executionEnabled: process.env.EXECUTION_ENABLED === "true",
@@ -42,5 +43,5 @@ export const config = {
   // heartbeat para proxies. Sin env nueva salvo estos dos con default seguro.
   ssePriceTickMs: Number(process.env.SSE_PRICE_TICK_MS || 12000),
   sseHeartbeatMs: Number(process.env.SSE_HEARTBEAT_MS || 20000),
-  serverVersion: "0.6.3",
+  serverVersion: "0.7.0",
 };

@@ -4,7 +4,7 @@
 
 Un agente inversor en lenguaje natural que compra acciones y ETFs tokenizados (xStocks) desde una wallet cripto detrás de un confirmation gate. Este repo es `agent-trading`; **Onda** es el nombre del producto.
 
-**Versión del repo: 0.6.3** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
+**Versión del repo: 0.7.0** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
 
 ## Preview en vivo
 
@@ -41,7 +41,7 @@ Desde un clone fresco, corré todo desde la raíz del repo:
 corepack enable   # provee el pnpm 12.11.2 pineado (saltealo si ya tenés pnpm 12)
 pnpm install      # los build scripts nativos de argon2/bufferutil/utf-8-validate están allow-listeados en pnpm-workspace.yaml
 pnpm build        # compila apps/api (tsc) y apps/web (vite)
-pnpm test         # 42 tests (apps/api, vitest)
+pnpm test         # tests deterministas de API y web
 ```
 
 La API **no** carga `.env` automáticamente (no hay dependencia dotenv), así que exportá las variables en tu shell. Toda variable de [`.env.example`](.env.example) tiene un default de demo en `apps/api/src/config.ts`, pero siempre seteá un `SESSION_SECRET` real:
@@ -68,6 +68,12 @@ Notas que un usuario nuevo tiene que saber antes de la primera corrida:
 - `pnpm e2e` corre `scripts/e2e-live.mjs` contra una API local corriendo en :3001 (levantala primero) y los endpoints en vivo de Jupiter/Solana.
 
 Las URLs locales son para desarrollo; el preview en vivo de arriba es la forma más rápida de probar el producto.
+
+### Consultar una wallet Solana (0.7.0)
+
+En una página principal HTTPS o localhost con la extensión Phantom instalada, iniciá sesión en Onda, elegí la red de consulta en **Wallet Solana** y hacé clic en **Conectar Phantom**. Mainnet muestra SOL, USDC, SPYx, AAPLx y NVDAx; Devnet solo muestra SOL y USDC de prueba. El selector cambia la red que consulta Onda, no la configuración de la extensión. **Actualizar** vuelve a consultar. **Desconectar** borra la dirección y los saldos; recargar también limpia el panel y nunca reconecta automáticamente.
+
+Onda envía la dirección pública a su API y al RPC de Solana configurado para consultar los saldos. No guarda la dirección en tu perfil de Onda ni la usa para iniciar sesión u operar. No pide firmas ni claves. Es una wallet existente inyectada por Phantom, no una embedded wallet ni un lanzamiento a producción. Ver [spec de wallet](docs/specs/01-wallet.md).
 
 ### Correr el MCP de Onda localmente
 
