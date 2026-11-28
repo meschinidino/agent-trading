@@ -7,6 +7,7 @@ Definir el modelo de wallet para la demo y para la escala multi-usuario, con cus
 ## Alcance
 
 - Demo: agent wallet de Phantom MCP sin fondeo en mainnet; operación en modo Track A (ver Detalle).
+- Prep de fase 2: consultar una wallet Solana existente del usuario, sin firma.
 - Fase 2: embedded wallets de Phantom Connect por usuario, con spending limits.
 - Notas de custodia y seguridad aplicables a ambas.
 
@@ -56,7 +57,15 @@ El MCP es el boundary de custodia de la demo: quien puede invocarlo puede firmar
 
 **Los límites nunca saltean el gate; solo agregan fricción sobre umbrales.** Esta oración es la regla canónica y vive también en [04-confirmation-gate.md](04-confirmation-gate.md): ningún límite, en ninguna fase, convierte una propuesta en auto-aprobada. En Track A rigen además topes de hábito, aunque el dinero sea paper: **tope por propuesta de 25 USDC paper y tope de 50 USDC paper por día por usuario**; superarlos rechaza la propuesta antes del gate con el motivo en lenguaje llano. Son config del backend, no del prompt.
 
+### Prep de fase 2 — Phantom inyectado, solo lectura (DIN-36)
+
+- La web usa el [provider de Solana inyectado por Phantom](https://docs.phantom.com/solana/establishing-a-connection): `window.phantom.solana` y `isPhantom`. La persona inicia la conexión y puede desconectarse. Ante un cambio autorizado de cuenta se consulta la nueva dirección; ante una desconexión o una cuenta sin permiso se borran dirección y saldos sin reconectar. La conexión queda en memoria de la página: recargar no la reanuda. No se piden firmas, claves ni permisos para operar, ni se usa la wallet como credencial de Onda.
+- En el panel **Wallet Solana**, la red es la red de consulta de Onda, no una lectura ni un cambio de la configuración de Phantom. Mainnet muestra SOL, USDC oficial y solo los xStocks del registry (SPYx, AAPLx, NVDAx). Devnet muestra SOL y [USDC de prueba de Circle](https://developers.circle.com/stablecoins/usdc-contract-addresses), sin xStocks. El panel muestra la hora de la última consulta exitosa y permite actualizar a mano. Un cambio de cuenta, red o una nueva consulta invalida la respuesta anterior.
+- `GET /api/v1/connected-wallet/balances?address=…&network=mainnet|devnet` exige sesión web y valida la dirección pública. La dirección se envía al backend y al RPC, sin guardarla en el perfil, el ledger, el historial, el agente ni MCP. El servidor verifica `getGenesisHash` antes de consultar cada endpoint y no mezcla clusters ni devuelve ceros parciales si el RPC falla. Lee cuentas SPL del propietario y, en Mainnet, Token-2022 con [los montos escalados del RPC](https://solana.com/docs/tokens/extensions/scaled-ui-amount/integration-guide) para xStocks, suma cuentas del mismo mint y devuelve montos como decimales exactos del snapshot. No usa los saldos para proponer ni ejecutar.
+
 ### Fase 2 — Phantom Connect embedded wallets
+
+**Prerequisito de implementación:** según la [documentación oficial del Browser SDK](https://docs.phantom.com/sdks/browser-sdk), el alta embebida con Google/Apple necesita una app existente de Phantom Portal, su App ID y los orígenes y redirects autorizados. Phantom informa que no acepta nuevas aplicaciones de Connect; los App IDs existentes no están afectados. Confirmar disponibilidad de una app autorizada y las políticas vigentes antes de diseñar contra ese SDK (DIN-39). El provider inyectado de esta etapa no necesita App ID: en Devnet, con una extensión compatible instalada en un navegador de prueba, permite validar conexión y lectura de SOL/USDC de prueba sin cuenta de Portal. Eso no prueba onboarding social, creación de wallets embebidas, políticas del proveedor, firma, ejecución ni swaps de xStocks.
 
 Cuando haya muchos usuarios, el patrón MCP no escala: una session local por agente no es multi-tenant. El path de escala es Phantom Connect, un producto separado:
 

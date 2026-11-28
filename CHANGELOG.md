@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-28
+
+### Added
+- **Wallet Solana en modo consulta (refs DIN-36):** conectá o desconectá Phantom desde la web para ver la dirección pública, SOL, USDC y los xStocks del registry en Mainnet. En Devnet se ven SOL y USDC de prueba, sin xStocks. El panel está separado del ledger paper y no solicita firmas ni habilita operaciones.
+
 ## [0.6.3] - 2026-11-28
 
 ### Added

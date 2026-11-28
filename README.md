@@ -4,7 +4,7 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Repository version: 0.6.3** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Repository version: 0.7.0** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
@@ -41,7 +41,7 @@ From a fresh clone, run everything from the repository root:
 corepack enable   # provides the pinned pnpm 12.11.2 (skip if pnpm 12 is already installed)
 pnpm install      # native build scripts for argon2/bufferutil/utf-8-validate are allow-listed in pnpm-workspace.yaml
 pnpm build        # builds apps/api (tsc) and apps/web (vite)
-pnpm test         # 42 tests (apps/api, vitest)
+pnpm test         # deterministic API and web tests
 ```
 
 The API does **not** auto-load `.env` (there is no dotenv dependency), so export the variables in your shell. Every variable in [`.env.example`](.env.example) has a demo default in `apps/api/src/config.ts` except that you should always set a real `SESSION_SECRET`:
@@ -68,6 +68,12 @@ Notes a new user should know before the first run:
 - `pnpm e2e` runs `scripts/e2e-live.mjs` against a locally running API on :3001 (start it first) and live Jupiter/Solana endpoints.
 
 Note that the local URLs are for development. The live preview above is the fastest way to try the product.
+
+### View a Solana wallet (0.7.0)
+
+On a top-level HTTPS or localhost page with the Phantom browser extension installed, sign in to Onda, choose a balance network under **Solana wallet**, and click **Connect Phantom**. Mainnet shows SOL, USDC, SPYx, AAPLx and NVDAx; Devnet shows test SOL and USDC only. The selector changes the network Onda queries, not the extension’s settings. **Refresh** reads a new snapshot. **Disconnect** clears the address and balances; reload also clears the panel and never reconnects automatically.
+
+Onda sends the public address to its API and the configured Solana RPC to look up balances. It does not save the address to your Onda profile, use it as login or trade with it. The app does not request signatures or keys. This is an injected, existing wallet, not an embedded wallet or a production rollout. See the [wallet spec](docs/specs/01-wallet.md).
 
 ### Run the Onda MCP locally
 

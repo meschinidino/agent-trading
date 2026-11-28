@@ -80,9 +80,32 @@
       </div>
 
       <div class="rsec">
-        <div class="rlabel" data-i18n="positions">Posiciones</div>
+        <div class="rlabel" data-i18n="positions">Posiciones · paper</div>
         <div id="positions"></div>
       </div>
+
+      <section class="rsec wallet-read hidden" id="connectedWallet" aria-labelledby="walletReadTitle">
+        <h2 id="walletReadTitle" data-i18n="walletReadTitle">Wallet Solana</h2>
+        <p class="rail-note" data-i18n="walletReadNote">Solo lectura con Phantom. Estos saldos no se usan para operar en Onda.</p>
+        <label class="wallet-network" for="walletNetwork">
+          <span data-i18n="walletNetworkLabel">Red de consulta</span>
+          <select id="walletNetwork">
+            <option value="mainnet">Solana Mainnet</option>
+            <option value="devnet">Solana Devnet</option>
+          </select>
+        </label>
+        <div class="wallet-actions">
+          <button type="button" class="btn-ghost" id="walletAction" data-i18n="walletConnect">Conectar Phantom</button>
+          <button type="button" class="btn-ghost" id="walletRefresh" data-i18n="walletRefresh" hidden>Actualizar</button>
+        </div>
+        <p class="rail-note" id="walletDevnetNote" data-i18n="walletDevnetNote" hidden>Devnet: saldos de prueba. xStocks no se consultan en esta red.</p>
+        <div id="walletReadout" hidden>
+          <p class="wallet-address-label" data-i18n="walletPublicAddress">Dirección pública</p>
+          <code id="walletAddress"></code>
+          <dl id="walletBalances"></dl>
+        </div>
+        <p id="walletStatus" class="rail-note" role="status"></p>
+      </section>
 
       <div class="rsec">
         <div class="rlabel" data-i18n="watch">Para mirar</div>
