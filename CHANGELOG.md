@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-11-28
+
+### Changed
+- **Docs y landing sincronizados con el estado real del MCP (refs DIN-33):** el MCP de Onda está prendido en producción desde el 2026-11-27 (revisión `onda--0000006`, `/health` reporta `mcpEnabled:true`) como demo interna y fue probado end-to-end con un cliente MCP real (7 tools: quote → propose → pending → slide-to-sign físico → ejecutado paper). `README.md`/`README.es.md` y `docs/roadmap.md` ya no dicen que está apagado en Azure: indican cómo conectar (Settings → token → cualquier cliente MCP en `/mcp` con Bearer) y qué sigue pendiente (dominio propio Q-M3 para onboarding público, OAuth 2.1 en fase 1.3, H11 abierto). La landing marca la puerta MCP como `Live — internal demo` / `En vivo — demo interna` con la pista mínima de conexión. Se mantiene la honestidad vigente: paper solamente, `executionEnabled:false`, URL cruda de Azure sin dominio propio, sin directorios públicos. `serverVersion` pasa a 0.5.5 (toma efecto en el próximo deploy de la app; este PR de docs no requiere redeploy de la app).
+
 ## [0.5.4] - 2026-11-27
 
 ### Fixed

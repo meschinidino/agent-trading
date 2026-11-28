@@ -38,5 +38,5 @@ export const config = {
     return "DELETE";
   })(),
   mcpTokenTtlDays: 90,
-  serverVersion: "0.5.4",
+  serverVersion: "0.5.5",
 };

@@ -4,13 +4,13 @@ English | [Español](README.es.md)
 
 A natural-language investing agent that buys tokenized stocks and ETFs (xStocks) from a crypto wallet behind a confirmation gate. This repository is `agent-trading`; **Onda** is the product name.
 
-**Version 0.5.4** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
+**Version 0.5.5** · **Live preview:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Internal demo — paper execution only.
 
 ## Live preview
 
 The product is **live as “Onda — Tu agente inversor”** at https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ (Azure Container Apps, resource group `rg-agent-trading-preview`, roughly USD 20–30/month).
 
-What works there today: register and sign in, create a paper wallet and fund it, get live Jupiter quotes, review a swap proposal and sign paper buys with a slide-to-sign gesture, and see portfolio, per-asset detail sheets (live Jupiter data plus sourced IPO/inception, issuer, sector info — also exposed read-only to agents via the MCP tool `onda_get_asset_info`), and transaction history. The agentic flow was proven end-to-end on the public URL: register → wallet → deposit → buy SPYx (paper) → portfolio.
+What works there today: register and sign in, create a paper wallet and fund it, get live Jupiter quotes, review a swap proposal and sign paper buys with a slide-to-sign gesture, and see portfolio, per-asset detail sheets (live Jupiter data plus sourced IPO/inception, issuer, sector info — also exposed read-only to agents via the MCP tool `onda_get_asset_info`), and transaction history. The agentic flow was proven end-to-end on the public URL: register → wallet → deposit → buy SPYx (paper) → portfolio. The Onda MCP server is also enabled on this preview as an internal demo: in the app, open **Settings → Agentes externos (MCP)**, create a token, and point any MCP client at `https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/mcp` with `Authorization: Bearer <token>` (7 tools; signing always in Onda, proven end-to-end with a real MCP client: quote → propose → pending → physical slide-to-sign → executed paper).
 
 A static design mockup is also live at https://agenttradingprev6cbfcf.z13.web.core.windows.net/ — that is a **design mockup only**, not the app.
 
@@ -24,7 +24,7 @@ The thesis is narrow on purpose: an LLM can operate a real wallet usefully if th
 
 ## Status
 
-Onda 0.5.4 is a live internal demo on real infrastructure, running paper execution:
+Onda 0.5.5 is a live internal demo on real infrastructure, running paper execution:
 
 - **Terminal amable UI** (the approved design direction): a cold dark terminal, Jupiter swap-object confirmation with slide-to-sign, a thread-centered layout, a portfolio rail and a live prices strip. This replaced the earlier “editorial C” direction after a teardown of comparable products; C is historical, not current.
 - **Real market data, simulated fills.** Quotes, prices, `simulateTransaction` checks and the agent wallet's on-chain balances are real and live. Paper USDC and paper xStocks are local ledger rows, labeled `mode: "paper"` end-to-end and never presented as on-chain balances.
@@ -71,7 +71,7 @@ Note that the local URLs are for development. The live preview above is the fast
 
 ### Run the Onda MCP locally
 
-The MCP server ships behind `MCP_ENABLED` (default off). To try it locally:
+The MCP server ships behind `MCP_ENABLED` (default off in code; enabled on the live preview as an internal demo). To try it locally:
 
 1. Start the API with the flag on and the public base URL pointing at the web client (used to build `signingUrl` deep links):
    ```bash
@@ -148,7 +148,7 @@ The full runbook — resources, build, and teardown commands, including the vari
 
 - **Phase 1 — Live internal demo (done):** v0.1.0 MVP (PR #4), Terminal amable UI (PR #7), Onda branding + Azure deploy (PR #8) → v0.2.0. Live at the preview URL.
 - **Phase 1.1 — Next:** SSE live updates (decided: SSE over polling); real execution behind `EXECUTION_ENABLED` pending the operator's funding decision and the spec-01 KMS checklist; optionally, a `devnet` MCP signing proof initiated from the API.
-- **Phase 1.2 — Onda MCP (code shipped behind flag, not enabled on Azure):** remote MCP server (Streamable HTTP at `/mcp`, 7 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; it stays off until `MCP_ENABLED=true` and a custom domain exists. Local run: [Run the Onda MCP locally](#run-the-onda-mcp-locally). See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
+- **Phase 1.2 — Onda MCP (live on the Azure preview as an internal demo since 2026-11-27):** remote MCP server (Streamable HTTP at `/mcp`, 7 tools, per-user API tokens with 90-day expiry) so users can operate from their own agent (ChatGPT/Claude/Cursor) with signing always in Onda; enabled in production with `MCP_ENABLED=true` and proven end-to-end with a real MCP client (quote → propose → pending → physical slide-to-sign → executed paper). Still an internal demo (H11 open) on the raw Azure URL: no custom domain yet (Q-M3) and no public onboarding; OAuth 2.1 is phase 1.3. Local run: [Run the Onda MCP locally](#run-the-onda-mcp-locally). See [`docs/specs/07-onda-mcp.md`](docs/specs/07-onda-mcp.md).
 - **Phase 2 — Multi-user:** Phantom Connect embedded wallets per user, per-user spending limits (the gate stays mandatory).
 - **Phase 3 — ARS on-ramp:** ARS → USDC funding via a third-party ramp; the agent operates unchanged on top.
 
@@ -165,7 +165,7 @@ Recorded 2026-11-27 (detail in spec 06):
 - **Execution stays off:** `EXECUTION_ENABLED=false` until the operator decides on funding.
 - **H11 — OPEN (owner: project owner):** xStocks eligibility for an operator in Argentina is still **unverified**. Until verified, the demo stays internal-only. This is the one open compliance item and it gates any third-party showing.
 
-Honest limits: paper execution only, MCP code shipped behind flag but not yet enabled on the Azure preview, no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
+Honest limits: paper execution only, MCP live only as an internal demo on the raw Azure URL (no custom domain, no public directories, H11 still open), no Phantom Connect, no ARS on-ramp, no SSE yet, no voice. Nothing here is financial advice.
 
 ## Docs
 
