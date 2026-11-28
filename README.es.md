@@ -4,7 +4,7 @@
 
 Un agente inversor en lenguaje natural que compra acciones y ETFs tokenizados (xStocks) desde una wallet cripto detrás de un confirmation gate. Este repo es `agent-trading`; **Onda** es el nombre del producto.
 
-**Versión del repo: 0.7.0** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
+**Versión del repo: 0.7.1** · **Preview en vivo:** https://onda.wonderfulsky-b50ff12c.eastus.azurecontainerapps.io/ · Demo interna — ejecución paper solamente.
 
 ## Preview en vivo
 
@@ -117,6 +117,7 @@ Monorepo TypeScript (Node 24, workspaces de pnpm):
 | `apps/web` | Cliente Vite + TypeScript: UI Terminal amable |
 | `agent/` | Scaffold del agente Eve 1.5.0 (instructions espejo + tools finas); el chat corre con el parser determinístico por default (`AGENT_MODE=parser`) |
 | `deploy/` | `Dockerfile` y runbook de deploy en Azure |
+| `tools/devnet-rehearsal/` | Tooling de test aislado para ensayar una transferencia en Solana devnet (sin app, Phantom ni acceso a producción) |
 | `docs/specs/` | El paquete completo de specs (en español; el idioma de trabajo del proyecto para docs de producto) |
 
 ```mermaid
